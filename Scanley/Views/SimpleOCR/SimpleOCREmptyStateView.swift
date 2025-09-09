@@ -95,3 +95,6 @@ struct SimpleOCREmptyStateView: View {
         }
     }
 }
+
+
+

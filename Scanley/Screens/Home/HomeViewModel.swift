@@ -57,6 +57,20 @@ class HomeViewModel: ObservableObject {
         showSimpleOCR = true
     }
     
+    // MARK: - Testing Methods (Temporary)
+    
+    func deleteAllData(context: ModelContext) async {
+        do {
+            try swiftDataManager.deleteAllDocumentTexts(context: context)
+            print("🗑️ All SwiftData documents deleted successfully")
+            
+            // Refresh the UI
+            await loadScanSummary(context: context)
+        } catch {
+            print("❌ Error deleting all data: \(error)")
+        }
+    }
+    
     // MARK: - Private Methods
     
     private func setupPhotoCategories() {

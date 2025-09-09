@@ -9,9 +9,7 @@ import SwiftUI
 import SwiftData
 
 struct Home: View {
-    @State private var showScanResults = false
-    @State private var showSearchView = false
-    @State private var showSimpleOCR = false
+    @StateObject private var viewModel = HomeViewModel()
     @StateObject private var dataManager = DocumentDataManager.shared
     @Environment(\.modelContext) private var modelContext
     
@@ -32,19 +30,48 @@ struct Home: View {
 
                         
                         Spacer()
+                        
+                        // Temporary Delete All Data Button (For Testing)
+                        Button(action: {
+                            Task {
+                                await viewModel.deleteAllData(context: modelContext)
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 12, weight: .medium))
+                                Text("Delete All")
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                            .foregroundColor(.red)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.red.opacity(0.1))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
                     .padding(.top, 1)
                     
                     // Search Box
                     SearchBox(onTapped: {
-                        showSearchView = true
+                        viewModel.openSearchView()
                     })
                     
                     // Summary section
-                    ScanSummarySection()
+                    ScanSummarySection(
+                        totalDocuments: viewModel.totalDocumentsFound,
+                        lastScanDate: viewModel.lastScanDate
+                    )
 
                     // Photo Categories Grid
-                    PhotoCategoriesGrid()
+                    PhotoCategoriesGrid(categories: viewModel.photoCategories)
                     
                     Spacer()
                 }
@@ -62,7 +89,7 @@ struct Home: View {
                     VStack(spacing: 12) {
                         // Test OCR Button (New Simple Approach)
                         Button(action: {
-                            showSimpleOCR = true
+                            viewModel.openSimpleOCR()
                         }) {
                             HStack(spacing: 8) {
                                 Text("Test OCR")
@@ -82,7 +109,7 @@ struct Home: View {
                         
                         // Original Scan Now Button
                         Button(action: {
-                            showScanResults = true
+                            viewModel.openScanResults()
                         }) {
                             HStack(spacing: 8) {
                                 Text("Scan Now")
@@ -105,14 +132,17 @@ struct Home: View {
                 }
             }
         }
-        .sheet(isPresented: $showScanResults) {
+        .sheet(isPresented: $viewModel.showScanResults) {
             ScanResultsView()
         }
-        .sheet(isPresented: $showSearchView) {
+        .sheet(isPresented: $viewModel.showSearchView) {
             SearchView(modelContext: modelContext)
         }
-        .sheet(isPresented: $showSimpleOCR) {
+        .sheet(isPresented: $viewModel.showSimpleOCR) {
             SimpleOCRView()
+        }
+        .task {
+            await viewModel.loadScanSummary(context: modelContext)
         }
     }
 }
@@ -159,7 +189,8 @@ struct SearchBox: View {
 }
 
 struct ScanSummarySection: View {
-    @ObservedObject var dataManager = DocumentDataManager.shared
+    let totalDocuments: Int
+    let lastScanDate: Date?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -175,11 +206,11 @@ struct ScanSummarySection: View {
             }
             
                 Group {
-                    if dataManager.totalDocumentsFound > 0 {
-                        if let lastScanDate = dataManager.lastScanDate {
-                            Text("\(dataManager.totalDocumentsFound) documents found • \(lastScanDate, style: .date)")
+                    if totalDocuments > 0 {
+                        if let lastScanDate = lastScanDate {
+                            Text("\(totalDocuments) documents found • \(lastScanDate, style: .date)")
                         } else {
-                            Text("\(dataManager.totalDocumentsFound) documents found")
+                            Text("\(totalDocuments) documents found")
                         }
                     } else {
                         Text("No scan performed yet")
@@ -199,12 +230,14 @@ struct ScanSummarySection: View {
 }
 
 struct PhotoCategoriesGrid: View {
+    let categories: [PhotoCategory]
+    
     var body: some View {
         LazyVGrid(columns: [
             GridItem(.flexible(), spacing: 10),
             GridItem(.flexible(), spacing: 10)
         ], spacing: 10) {
-            ForEach(defaultPhotoCategories, id: \.title) { category in
+            ForEach(categories, id: \.title) { category in
                 PhotoCategoryCard(category: category)
             }
         }
