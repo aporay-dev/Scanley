@@ -6,8 +6,16 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct Home: View {
+    @State private var showScanResults = false
+    @State private var showSearchView = false
+    @State private var showSimpleOCR = false
+    @StateObject private var dataManager = DocumentDataManager.shared
+    @StateObject private var simpleOCRScanner = SimpleOCRScanner()
+    @Environment(\.modelContext) private var modelContext
+    
     var body: some View {
         ZStack {
             ScrollView {
@@ -29,7 +37,9 @@ struct Home: View {
                     .padding(.top, 1)
                     
                     // Search Box
-                    SearchBox()
+                    SearchBox(onTapped: {
+                        showSearchView = true
+                    })
                     
                     // Summary section
                     ScanSummarySection()
@@ -45,80 +55,116 @@ struct Home: View {
             }
             .background(Color(UIColor.systemGroupedBackground))
             
-            // Scan Now Button - Bottom Right
+            // Floating Action Buttons - Bottom Right
         VStack {
                 Spacer()
                 HStack {
                     Spacer()
-                    Button(action: {
-                        // Handle scan action
-                        print("Scan Now button tapped!")
-                    }) {
-                        HStack(spacing: 8) {
-                            Text("Scan Now")
-                                .font(.system(size: 16, weight: .medium))
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 16, weight: .medium))
+                    VStack(spacing: 12) {
+                        // Test OCR Button (New Simple Approach)
+                        Button(action: {
+                            showSimpleOCR = true
+                        }) {
+                            HStack(spacing: 8) {
+                                Text("Test OCR")
+                                    .font(.system(size: 14, weight: .medium))
+                                Image(systemName: "doc.text.magnifyingglass")
+                                    .font(.system(size: 14, weight: .medium))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color.orange)
+                            )
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
                         }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 25)
-                                .fill(Color.cyan)
-                        )
-                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        
+                        // Original Scan Now Button
+                        Button(action: {
+                            showScanResults = true
+                        }) {
+                            HStack(spacing: 8) {
+                                Text("Scan Now")
+                                    .font(.system(size: 16, weight: .medium))
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 25)
+                                    .fill(Color.cyan)
+                            )
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        }
                     }
                     .padding(.trailing, 20)
                     .padding(.bottom, 20) // Account for safe area
                 }
             }
         }
+        .sheet(isPresented: $showScanResults) {
+            ScanResultsView()
+        }
+        .sheet(isPresented: $showSearchView) {
+            SearchView(modelContext: modelContext)
+        }
+        .sheet(isPresented: $showSimpleOCR) {
+            SimpleOCRView(scanner: simpleOCRScanner)
+        }
+        .onAppear {
+            // Set model context for simple OCR scanner
+            simpleOCRScanner.setModelContext(modelContext)
+        }
     }
 }
 
 struct SearchBox: View {
-    @State private var searchText = ""
+    let onTapped: () -> Void
     
     var body: some View {
-        // Search Box with Purple Border
-        HStack(spacing: 12) {
-            // Purple magnifying glass icon
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundColor(.purple)
-                .padding(.leading, 16)
-            
-            // Search text field
-            TextField("Search receipts, bills, documents...", text: $searchText)
-                .font(.system(size: 16))
-                .foregroundColor(.primary)
-                .textFieldStyle(PlainTextFieldStyle())
-                .accentColor(.purple)
-                .colorScheme(.light)
-            Text("Go")
-                .font(.system(size: 18, weight: .black))
-                .foregroundColor(.purple)
-                .padding(.leading, 16)
-
-            
-            Spacer()
+        // Search Box with Purple Border - Tap to open search
+        Button(action: onTapped) {
+            HStack(spacing: 12) {
+                // Purple magnifying glass icon
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.purple)
+                    .padding(.leading, 16)
+                
+                // Placeholder text
+                Text("Search receipts, bills, documents...")
+                    .font(.system(size: 16))
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                Text("Go")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundColor(.purple)
+                    .padding(.trailing, 16)
+            }
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.purple, lineWidth: 1)
+                    )
+            )
         }
-        .padding(.vertical, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.purple, lineWidth: 1)
-                )
-        )
+        .buttonStyle(PlainButtonStyle())
         .padding(.top,10)
         .padding(.horizontal, 4)
     }
 }
 
 struct ScanSummarySection: View {
+    @ObservedObject var dataManager = DocumentDataManager.shared
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -133,8 +179,18 @@ struct ScanSummarySection: View {
                     .foregroundColor(.white)
             }
             
-                Text("Total photos/Last scan date")
-                .font(.system(size: 18, weight: .bold))
+                Group {
+                    if dataManager.totalDocumentsFound > 0 {
+                        if let lastScanDate = dataManager.lastScanDate {
+                            Text("\(dataManager.totalDocumentsFound) documents found • \(lastScanDate, style: .date)")
+                        } else {
+                            Text("\(dataManager.totalDocumentsFound) documents found")
+                        }
+                    } else {
+                        Text("No scan performed yet")
+                    }
+                }
+                .font(.system(size: 16, weight: .medium))
                   .foregroundColor(.white)
                   .multilineTextAlignment(.leading)
                   .lineLimit(nil)
@@ -193,4 +249,5 @@ struct PhotoCategoryCard: View {
 
 #Preview {
     Home()
+        .modelContainer(for: DocumentText.self)
 }
