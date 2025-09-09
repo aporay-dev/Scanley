@@ -11,7 +11,6 @@ import Photos
 
 struct SearchView: View {
     @StateObject private var searchService: DocumentSearchService
-    @StateObject private var scanner = PhotoLibraryDocumentScanner()
     @State private var searchText = ""
     @State private var showSearchSuggestions = false
     @State private var searchSuggestions: [String] = []

@@ -13,7 +13,6 @@ struct Home: View {
     @State private var showSearchView = false
     @State private var showSimpleOCR = false
     @StateObject private var dataManager = DocumentDataManager.shared
-    @StateObject private var simpleOCRScanner = SimpleOCRScanner()
     @Environment(\.modelContext) private var modelContext
     
     var body: some View {
@@ -113,11 +112,7 @@ struct Home: View {
             SearchView(modelContext: modelContext)
         }
         .sheet(isPresented: $showSimpleOCR) {
-            SimpleOCRView(scanner: simpleOCRScanner)
-        }
-        .onAppear {
-            // Set model context for simple OCR scanner
-            simpleOCRScanner.setModelContext(modelContext)
+            SimpleOCRView()
         }
     }
 }
@@ -209,7 +204,7 @@ struct PhotoCategoriesGrid: View {
             GridItem(.flexible(), spacing: 10),
             GridItem(.flexible(), spacing: 10)
         ], spacing: 10) {
-            ForEach(photoCategories, id: \.title) { category in
+            ForEach(defaultPhotoCategories, id: \.title) { category in
                 PhotoCategoryCard(category: category)
             }
         }

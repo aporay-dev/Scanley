@@ -1,8 +1,8 @@
 //
-//  DocumentSearchService.swift
+//  SearchViewModel.swift
 //  Scanley
 //
-//  Created by Anand Poray on 2025-09-08.
+//  Created by Anand Poray on 2025-09-09.
 //
 
 import Foundation
@@ -11,12 +11,13 @@ import Photos
 import SwiftUI
 
 @MainActor
-class DocumentSearchService: ObservableObject {
+class SearchViewModel: ObservableObject {
     @Published var searchResults: [SearchResult] = []
     @Published var isSearching = false
     @Published var searchQuery = ""
     
     private var modelContext: ModelContext
+    private let swiftDataManager = SwiftDataManager.shared
     
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
@@ -25,30 +26,68 @@ class DocumentSearchService: ObservableObject {
     // MARK: - Search Methods
     
     func search(query: String) async {
-        guard !query.isEmpty else {
-            searchResults = []
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            clearSearch()
             return
         }
-        
-        print("🔍 Starting search for query: '\(query)'")
         
         isSearching = true
         searchQuery = query
         
-        let results = await performSearch(query: query)
+        do {
+            let results = await performSearch(query: query)
+            searchResults = results
+        } catch {
+            print("Search error: \(error)")
+            searchResults = []
+        }
         
-        print("📊 Search completed - found \(results.count) results")
-        
-        searchResults = results
         isSearching = false
     }
     
     func clearSearch() {
-        searchQuery = ""
         searchResults = []
+        searchQuery = ""
+        isSearching = false
     }
     
-    // MARK: - Private Search Implementation
+    // MARK: - Search Suggestions
+    
+    func getSearchSuggestions(for partialQuery: String) async -> [String] {
+        guard partialQuery.count >= 2 else { return [] }
+        
+        do {
+            let allDocumentTexts = try swiftDataManager.fetchAllDocumentTexts(context: modelContext)
+            
+            var suggestions: Set<String> = []
+            let queryLower = partialQuery.lowercased()
+            
+            for documentText in allDocumentTexts {
+                // Extract words from text and key phrases
+                let textWords = documentText.extractedText.components(separatedBy: .whitespacesAndNewlines)
+                let keyPhrases = documentText.keyPhrases
+                let summaryWords = documentText.textSummary?.components(separatedBy: .whitespacesAndNewlines) ?? []
+                
+                let allWords = textWords + keyPhrases + summaryWords
+                
+                for word in allWords {
+                    let cleanWord = word.trimmingCharacters(in: .punctuationCharacters).lowercased()
+                    if cleanWord.count >= 3 && cleanWord.hasPrefix(queryLower) && cleanWord != queryLower {
+                        suggestions.insert(cleanWord.capitalized)
+                        if suggestions.count >= 5 { break }
+                    }
+                }
+                if suggestions.count >= 5 { break }
+            }
+            
+            return Array(suggestions).sorted()
+        } catch {
+            print("Error generating suggestions: \(error)")
+            return []
+        }
+    }
+    
+    // MARK: - Private Methods
     
     private func performSearch(query: String) async -> [SearchResult] {
         // Search in SwiftData for documents containing the query
@@ -59,15 +98,9 @@ class DocumentSearchService: ObservableObject {
         
         do {
             // Fetch all document texts
-            let descriptor = FetchDescriptor<DocumentText>()
-            let allDocumentTexts = try modelContext.fetch(descriptor)
+            let allDocumentTexts = try swiftDataManager.fetchAllDocumentTexts(context: modelContext)
             
             print("📚 Found \(allDocumentTexts.count) documents in SwiftData")
-            for (idx, doc) in allDocumentTexts.enumerated() {
-                print("   Document \(idx + 1): ID=\(doc.documentID)")
-                print("   Text preview: '\(String(doc.extractedText.prefix(100)))...'")
-                print("   Confidence: \(doc.confidence)")
-            }
             
             var matchingResults: [SearchResult] = []
             
@@ -171,77 +204,4 @@ class DocumentSearchService: ObservableObject {
         // Return up to 3 most relevant snippets
         return Array(matchingSnippets.prefix(3))
     }
-    
-    // MARK: - Search Suggestions
-    
-    func getSearchSuggestions(for partialQuery: String) async -> [String] {
-        guard partialQuery.count >= 2 else { return [] }
-        
-        do {
-            let descriptor = FetchDescriptor<DocumentText>()
-            let allDocumentTexts = try modelContext.fetch(descriptor)
-            
-            var suggestions = Set<String>()
-            
-            for documentText in allDocumentTexts {
-                // Look for words that start with the partial query
-                for phrase in documentText.keyPhrases {
-                    if phrase.lowercased().hasPrefix(partialQuery.lowercased()) {
-                        suggestions.insert(phrase)
-                    }
-                }
-                
-                // Also check the summary for suggestions
-                if let summary = documentText.textSummary {
-                    let words = summary.components(separatedBy: .whitespacesAndNewlines)
-                    for word in words {
-                        let cleanWord = word.trimmingCharacters(in: .punctuationCharacters)
-                        if cleanWord.lowercased().hasPrefix(partialQuery.lowercased()) && cleanWord.count > 2 {
-                            suggestions.insert(cleanWord)
-                        }
-                    }
-                }
-            }
-            
-            return Array(suggestions).sorted().prefix(5).map { String($0) }
-            
-        } catch {
-            print("Error getting search suggestions: \(error)")
-            return []
-        }
-    }
-    
-    // MARK: - Statistics
-    
-    func getSearchStatistics() async -> SearchStatistics {
-        do {
-            let descriptor = FetchDescriptor<DocumentText>()
-            let allDocumentTexts = try modelContext.fetch(descriptor)
-            
-            let totalDocumentsWithText = allDocumentTexts.count
-            let averageConfidence = allDocumentTexts.isEmpty ? 0.0 : 
-                allDocumentTexts.map { $0.confidence }.reduce(0, +) / Float(allDocumentTexts.count)
-            
-            let documentTypeDistribution = Dictionary(grouping: allDocumentTexts, by: { $0.documentType })
-                .mapValues { $0.count }
-            
-            return SearchStatistics(
-                totalDocumentsWithText: totalDocumentsWithText,
-                averageOCRConfidence: averageConfidence,
-                documentTypeDistribution: documentTypeDistribution
-            )
-            
-        } catch {
-            print("Error getting search statistics: \(error)")
-            return SearchStatistics(totalDocumentsWithText: 0, averageOCRConfidence: 0.0, documentTypeDistribution: [:])
-        }
-    }
-}
-
-// MARK: - Supporting Structures
-
-struct SearchStatistics {
-    let totalDocumentsWithText: Int
-    let averageOCRConfidence: Float
-    let documentTypeDistribution: [String: Int]
 }

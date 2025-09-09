@@ -1,8 +1,8 @@
 //
-//  SimpleOCRScanner.swift
+//  SimpleOCRViewModel.swift
 //  Scanley
 //
-//  Created by Anand Poray on 2025-09-08.
+//  Created by Anand Poray on 2025-09-09.
 //
 
 import SwiftUI
@@ -11,7 +11,7 @@ import Vision
 import SwiftData
 
 @MainActor
-class SimpleOCRScanner: ObservableObject {
+class SimpleOCRViewModel: ObservableObject {
     @Published var isScanning = false
     @Published var scanProgress: Double = 0.0
     @Published var scanStatusMessage = ""
@@ -22,37 +22,15 @@ class SimpleOCRScanner: ObservableObject {
     
     private var modelContext: ModelContext?
     private var scanTask: Task<Void, Never>?
+    private let swiftDataManager = SwiftDataManager.shared
     
-    init(modelContext: ModelContext? = nil) {
-        self.modelContext = modelContext
-    }
+    init() {}
     
     func setModelContext(_ context: ModelContext) {
         self.modelContext = context
     }
     
-    enum ScanError: Error, LocalizedError {
-        case photoLibraryAccessDenied
-        case noPhotosFound
-        case ocrProcessingFailed
-        case scanCancelled
-        case noModelContext
-        
-        var errorDescription: String? {
-            switch self {
-            case .photoLibraryAccessDenied:
-                return "Photo library access was denied. Please enable access in Settings."
-            case .noPhotosFound:
-                return "No photos found in your photo library."
-            case .ocrProcessingFailed:
-                return "Failed to process images for text extraction."
-            case .scanCancelled:
-                return "Scan was cancelled by user."
-            case .noModelContext:
-                return "Database not available for storing results."
-            }
-        }
-    }
+    // MARK: - Public Methods
     
     func requestPhotoLibraryAccess() async -> Bool {
         let status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
@@ -61,14 +39,14 @@ class SimpleOCRScanner: ObservableObject {
     
     func startSimpleOCRScan() async {
         guard await requestPhotoLibraryAccess() else {
-            lastError = ScanError.photoLibraryAccessDenied.localizedDescription
-            scanStatusMessage = "Photo library access required"
+            lastError = AlertManager.ocrMessages.photoLibraryAccessDenied
+            scanStatusMessage = AlertManager.photoLibraryMessages.accessRequired
             return
         }
         
         guard modelContext != nil else {
-            lastError = ScanError.noModelContext.localizedDescription
-            scanStatusMessage = "Database not available"
+            lastError = AlertManager.ocrMessages.noModelContext
+            scanStatusMessage = AlertManager.ocrMessages.noModelContext
             return
         }
         
@@ -79,7 +57,7 @@ class SimpleOCRScanner: ObservableObject {
                 isScanning = true
                 lastError = nil
                 scanProgress = 0.0
-                scanStatusMessage = "Starting simplified OCR scan..."
+                scanStatusMessage = AlertManager.ocrMessages.scanStarted
                 totalPhotosScanned = 0
                 documentsWithTextFound = 0
                 
@@ -87,14 +65,14 @@ class SimpleOCRScanner: ObservableObject {
                 
                 if !Task.isCancelled {
                     isScanning = false
-                    scanStatusMessage = "Simple OCR scan complete: \(documentsWithTextFound) photos with text found from \(totalPhotosScanned) photos"
+                    scanStatusMessage = "\(AlertManager.ocrMessages.scanCompleted): \(documentsWithTextFound) photos with text found from \(totalPhotosScanned) photos"
                     print("🎉 Simple OCR scan completed successfully!")
                 }
             } catch {
                 if !Task.isCancelled {
                     isScanning = false
                     lastError = error.localizedDescription
-                    scanStatusMessage = "Scan failed: \(error.localizedDescription)"
+                    scanStatusMessage = "\(AlertManager.ocrMessages.scanFailed): \(error.localizedDescription)"
                     print("❌ Simple OCR scan failed: \(error.localizedDescription)")
                 }
             }
@@ -107,9 +85,11 @@ class SimpleOCRScanner: ObservableObject {
         scanTask?.cancel()
         scanTask = nil
         isScanning = false
-        scanStatusMessage = "Simple OCR scan cancelled"
+        scanStatusMessage = AlertManager.ocrMessages.scanCancelled
         print("🛑 Simple OCR scan cancelled by user")
     }
+    
+    // MARK: - Private Methods
     
     private func performSimpleOCRScan() async throws {
         let fetchOptions = PHFetchOptions()
@@ -118,7 +98,7 @@ class SimpleOCRScanner: ObservableObject {
         let allPhotos = PHAsset.fetchAssets(with: .image, options: fetchOptions)
         
         guard allPhotos.count > 0 else {
-            throw ScanError.noPhotosFound
+            throw OCRScanError.noPhotosFound
         }
         
         // Test mode: limit to latest 100 photos for faster testing
@@ -138,7 +118,7 @@ class SimpleOCRScanner: ObservableObject {
         // Process in larger batches for better performance
         let batchSize = 5
         
-        for batchStart in stride(from: 0, to: totalCount, by: batchSize) {
+        for batchStart in Swift.stride(from: 0, to: totalCount, by: batchSize) {
             let batchEnd = min(batchStart + batchSize, totalCount)
             
             try Task.checkCancellation()
@@ -167,9 +147,16 @@ class SimpleOCRScanner: ObservableObject {
     }
     
     private func processPhotoAtIndex(_ index: Int, asset: PHAsset, imageManager: PHImageManager, requestOptions: PHImageRequestOptions) async {
+        guard let context = modelContext else { return }
+        
         // Check if we already have OCR data for this photo
-        if await ocrDataExists(for: asset.localIdentifier) {
-            print("⏭️  Skipping photo \(index + 1) - OCR data already exists")
+        do {
+            if try swiftDataManager.documentTextExists(for: asset.localIdentifier, context: context) {
+                print("⏭️  Skipping photo \(index + 1) - OCR data already exists")
+                return
+            }
+        } catch {
+            print("❌ Error checking existing OCR data: \(error)")
             return
         }
         
@@ -217,22 +204,6 @@ class SimpleOCRScanner: ObservableObject {
         }
     }
     
-    private func ocrDataExists(for documentID: String) async -> Bool {
-        guard let context = modelContext else { return false }
-        
-        let descriptor = FetchDescriptor<DocumentText>(
-            predicate: #Predicate { $0.documentID == documentID }
-        )
-        
-        do {
-            let existingTexts = try context.fetch(descriptor)
-            return !existingTexts.isEmpty
-        } catch {
-            print("❌ Error checking existing OCR data: \(error)")
-            return false
-        }
-    }
-    
     private func performOCR(on image: UIImage) async -> OCRResult {
         return await withCheckedContinuation { continuation in
             guard let cgImage = image.cgImage else {
@@ -258,7 +229,7 @@ class SimpleOCRScanner: ObservableObject {
                 
                 // Join text with newlines to preserve document structure
                 let fullText = recognizedTexts.map { $0.string }.joined(separator: "\n")
-                let averageConfidence = recognizedTexts.isEmpty ? 0.0 : 
+                let averageConfidence = recognizedTexts.isEmpty ? 0.0 :
                     recognizedTexts.map { $0.confidence }.reduce(0, +) / Float(recognizedTexts.count)
                 
                 continuation.resume(returning: OCRResult(text: fullText, confidence: averageConfidence))
@@ -295,10 +266,8 @@ class SimpleOCRScanner: ObservableObject {
             textSummary: createSimpleSummary(from: extractedText)
         )
         
-        context.insert(documentText)
-        
         do {
-            try context.save()
+            try swiftDataManager.saveDocumentText(documentText, context: context)
         } catch {
             print("❌ Error saving simple OCR result: \(error)")
         }
@@ -315,3 +284,32 @@ class SimpleOCRScanner: ObservableObject {
     }
 }
 
+// MARK: - Models
+
+struct OCRResult {
+    let text: String
+    let confidence: Float
+}
+
+enum OCRScanError: Error, LocalizedError {
+    case photoLibraryAccessDenied
+    case noPhotosFound
+    case ocrProcessingFailed
+    case scanCancelled
+    case noModelContext
+    
+    var errorDescription: String? {
+        switch self {
+        case .photoLibraryAccessDenied:
+            return AlertManager.ocrMessages.photoLibraryAccessDenied
+        case .noPhotosFound:
+            return AlertManager.ocrMessages.noPhotosFound
+        case .ocrProcessingFailed:
+            return AlertManager.ocrMessages.ocrProcessingFailed
+        case .scanCancelled:
+            return AlertManager.ocrMessages.scanCancelled
+        case .noModelContext:
+            return AlertManager.ocrMessages.noModelContext
+        }
+    }
+}
