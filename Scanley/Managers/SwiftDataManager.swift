@@ -22,6 +22,33 @@ class SwiftDataManager: ObservableObject {
         try context.save()
     }
     
+    // MARK: - Batch Operations (Performance Optimized)
+    
+    func saveBatchDocumentTexts(_ documentTexts: [DocumentText], context: ModelContext) throws {
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
+        // Batch insert all documents
+        for documentText in documentTexts {
+            context.insert(documentText)
+        }
+        
+        // Single save operation for entire batch
+        try context.save()
+        
+        let endTime = CFAbsoluteTimeGetCurrent()
+        let duration = endTime - startTime
+        
+        print("📊 Batch saved \(documentTexts.count) documents in \(String(format: "%.3f", duration))s")
+    }
+    
+    // MARK: - Background Context Support
+    
+    func createBackgroundContext(from container: ModelContainer) -> ModelContext {
+        let backgroundContext = ModelContext(container)
+        print("🔧 Created background context for batch operations")
+        return backgroundContext
+    }
+    
     func fetchAllDocumentTexts(context: ModelContext) throws -> [DocumentText] {
         let descriptor = FetchDescriptor<DocumentText>()
         return try context.fetch(descriptor)

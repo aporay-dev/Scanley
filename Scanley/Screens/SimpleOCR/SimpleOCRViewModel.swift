@@ -21,13 +21,26 @@ class SimpleOCRViewModel: ObservableObject {
     @Published var isTestMode = false
     
     private var modelContext: ModelContext?
+    private var backgroundContext: ModelContext?
     private var scanTask: Task<Void, Never>?
     private let swiftDataManager = SwiftDataManager.shared
+    private let performanceMonitor = PerformanceMonitor.shared
+    private var batchDocumentSaver: BatchDocumentSaver?
     
     init() {}
     
     func setModelContext(_ context: ModelContext) {
         self.modelContext = context
+        
+        // Create background context for batch operations
+        let container = context.container
+        self.backgroundContext = swiftDataManager.createBackgroundContext(from: container)
+        
+        // Initialize batch saver with background context
+        self.batchDocumentSaver = BatchDocumentSaver(batchSize: 15)
+        self.batchDocumentSaver?.setBackgroundContext(backgroundContext!)
+        
+        print("🔧 Performance optimizations initialized")
     }
     
     // MARK: - Public Methods
@@ -87,6 +100,11 @@ class SimpleOCRViewModel: ObservableObject {
         isScanning = false
         scanStatusMessage = AlertManager.ocrMessages.scanCancelled
         print("🛑 Simple OCR scan cancelled by user")
+        
+        // Finalize any pending batch operations
+        Task {
+            await batchDocumentSaver?.finalizeAndSave()
+        }
     }
     
     // MARK: - Private Methods
@@ -115,24 +133,39 @@ class SimpleOCRViewModel: ObservableObject {
         requestOptions.isNetworkAccessAllowed = false
         requestOptions.resizeMode = .exact
         
-        // Process in larger batches for better performance
-        let batchSize = 5
+        // Dynamic batch sizing based on device capabilities
+        let batchSize = performanceMonitor.optimalBatchSize()
+        print("📊 Using optimal batch size: \(batchSize) for this device")
+        
+        // Reset performance monitoring
+        performanceMonitor.resetStats()
+        
+        // Pipeline processing with overlapping batches
         
         for batchStart in Swift.stride(from: 0, to: totalCount, by: batchSize) {
             let batchEnd = min(batchStart + batchSize, totalCount)
+            let batchStartTime = CFAbsoluteTimeGetCurrent()
             
             try Task.checkCancellation()
             
-            // Process batch concurrently for better performance
+            // Process batch concurrently with improved performance
             await withTaskGroup(of: Void.self) { group in
                 for i in batchStart..<batchEnd {
                     group.addTask {
+                        let startTime = CFAbsoluteTimeGetCurrent()
                         await self.processPhotoAtIndex(i, asset: allPhotos.object(at: i), imageManager: imageManager, requestOptions: requestOptions)
+                        let endTime = CFAbsoluteTimeGetCurrent()
+                        
+                        // Record processing time for performance monitoring
+                        await MainActor.run {
+                            self.performanceMonitor.recordProcessingTime(endTime - startTime)
+                        }
                     }
                 }
                 
                 await group.waitForAll()
             }
+            
             
             // Update progress after each batch
             await MainActor.run {
@@ -141,9 +174,22 @@ class SimpleOCRViewModel: ObservableObject {
                 self.scanStatusMessage = "OCR Progress: \(progressPercent)% (\(self.documentsWithTextFound) with text found)"
             }
             
-            // Small delay to prevent overwhelming the system
-            try? await Task.sleep(nanoseconds: 50_000_000) // 0.05 second
+            // Dynamic throttling based on performance
+            let batchTime = CFAbsoluteTimeGetCurrent() - batchStartTime
+            let throttleTime = performanceMonitor.shouldThrottle()
+            
+            if throttleTime > 0 {
+                print("⏱️ Dynamic throttling: \(String(format: "%.3f", throttleTime))s (batch took \(String(format: "%.3f", batchTime))s)")
+                try? await Task.sleep(nanoseconds: UInt64(throttleTime * 1_000_000_000))
+            }
         }
+        
+        // Finalize any remaining batch operations
+        await batchDocumentSaver?.finalizeAndSave()
+        
+        // Print performance summary
+        let stats = performanceMonitor.getPerformanceStats()
+        print("📈 Performance Summary: avg processing time: \(String(format: "%.3f", stats.averageProcessingTime))s, total processed: \(stats.totalProcessedCount)")
     }
     
     private func processPhotoAtIndex(_ index: Int, asset: PHAsset, imageManager: PHImageManager, requestOptions: PHImageRequestOptions) async {
@@ -252,11 +298,6 @@ class SimpleOCRViewModel: ObservableObject {
     }
     
     private func storeSimpleOCRResult(documentID: String, extractedText: String, confidence: Float, dateCreated: Date) async {
-        guard let context = modelContext else {
-            print("❌ No model context available for storing OCR result")
-            return
-        }
-        
         // For simple OCR, we don't classify - just mark as "Text Document"
         let documentText = DocumentText(
             documentID: documentID,
@@ -266,10 +307,21 @@ class SimpleOCRViewModel: ObservableObject {
             textSummary: createSimpleSummary(from: extractedText)
         )
         
-        do {
-            try swiftDataManager.saveDocumentText(documentText, context: context)
-        } catch {
-            print("❌ Error saving simple OCR result: \(error)")
+        // Use batch saver for optimal database performance
+        if let batchSaver = batchDocumentSaver {
+            await batchSaver.addDocument(documentText)
+        } else {
+            // Fallback to individual save if batch saver not available
+            guard let context = modelContext else {
+                print("❌ No model context available for storing OCR result")
+                return
+            }
+            
+            do {
+                try swiftDataManager.saveDocumentText(documentText, context: context)
+            } catch {
+                print("❌ Error saving simple OCR result: \(error)")
+            }
         }
     }
     
