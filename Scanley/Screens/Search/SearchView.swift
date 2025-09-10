@@ -127,6 +127,7 @@ struct SearchHeader: View {
                 TextField("Search in document text...", text: $searchText)
                     .font(.system(size: 16))
                     .foregroundColor(.primary)
+                    .tint(.purple) // Sets cursor color
                     .textFieldStyle(PlainTextFieldStyle())
                     .onSubmit {
                         onSearchSubmitted()
@@ -148,7 +149,7 @@ struct SearchHeader: View {
             .padding(.vertical, 16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white)
+                    .fill(Color(UIColor.systemBackground))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(Color.purple, lineWidth: 1)
@@ -184,7 +185,7 @@ struct SearchHeader: View {
                         }
                     }
                 }
-                .background(Color.white)
+                .background(Color(UIColor.systemBackground))
                 .cornerRadius(12)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
