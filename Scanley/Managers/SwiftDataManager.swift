@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftData
+import Photos
 
 @MainActor
 class SwiftDataManager: ObservableObject {
@@ -110,6 +111,39 @@ class SwiftDataManager: ObservableObject {
                        summary.contains(termLower)
             }
         }
+    }
+    
+    // MARK: - App Launch Orphaned Records Cleanup
+    
+    func performAppLaunchCleanup(context: ModelContext) throws -> Int {
+        print("🧹 Starting app launch cleanup - checking for orphaned records...")
+        
+        let allDocuments = try fetchAllDocumentTexts(context: context)
+        var cleanedCount = 0
+        
+        for document in allDocuments {
+            if !isPhotoLibraryAssetValid(documentID: document.documentID) {
+                print("🗑️  Cleaning up orphaned record: \(document.documentID.prefix(8))... (Text: \(String(document.extractedText.prefix(50)))...)")
+                context.delete(document)
+                cleanedCount += 1
+            }
+        }
+        
+        if cleanedCount > 0 {
+            try context.save()
+            print("✅ App launch cleanup completed: \(cleanedCount) orphaned records removed")
+        } else {
+            print("✅ App launch cleanup completed: No orphaned records found")
+        }
+        
+        return cleanedCount
+    }
+    
+    private func isPhotoLibraryAssetValid(documentID: String) -> Bool {
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.predicate = NSPredicate(format: "localIdentifier == %@", documentID)
+        let assets = PHAsset.fetchAssets(with: fetchOptions)
+        return assets.firstObject != nil
     }
     
     // MARK: - Statistics

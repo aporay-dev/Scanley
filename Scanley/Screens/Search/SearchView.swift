@@ -133,7 +133,7 @@ struct SearchHeader: View {
                         onSearchSubmitted()
                     }
                     .onChange(of: searchText) { _, newValue in
-                        onSearchTextChanged(newValue)
+                       // onSearchTextChanged(newValue)
                     }
                 
                 if !searchText.isEmpty {
