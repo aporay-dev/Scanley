@@ -2,12 +2,11 @@
 //  DocumentClassificationService.swift
 //  Scanley
 //
-//  Created by Anand Poray on 2025-09-10.
+//  Created by Claude on 2025-09-10.
 //
 
 import Foundation
 import NaturalLanguage
-import CoreML
 import SwiftData
 
 @MainActor
@@ -127,29 +126,44 @@ class DocumentClassificationService: ObservableObject {
         let words = extractKeywords(from: lowercasedText)
         
         // Tax Related Keywords
-        let taxKeywords = ["tax", "irs", "deduction", "form", "w-2", "w2", "1099", "tax return", "refund", "taxable", "tax year", "schedule", "tax code", "withholding", "tax liability", "tax credit"]
+        let taxKeywords = ["tax", "irs", "deduction", "form", "w-2", "w2", "1099", "tax return", "refund", "taxable", "tax year", "schedule", "tax code", "withholding", "tax liability", "tax credit", "filing", "itemized", "standard deduction", "earned income"]
         
         // Receipt Keywords  
-        let receiptKeywords = ["receipt", "purchase", "bought", "paid", "total", "subtotal", "cash", "card", "visa", "mastercard", "amex", "store", "shop", "retail", "checkout", "transaction", "sale", "qty", "quantity"]
+        let receiptKeywords = ["receipt", "purchase", "bought", "paid", "total", "subtotal", "cash", "card", "visa", "mastercard", "amex", "store", "shop", "retail", "checkout", "transaction", "sale", "qty", "quantity", "item", "product", "price", "amount"]
+        
+        // Invoice & Bills Keywords
+        let invoiceBillKeywords = ["invoice", "bill", "billing", "due date", "amount due", "payment terms", "net 30", "remit", "remittance", "services rendered", "professional services", "consultation", "hourly rate", "project", "milestone", "contractor", "vendor", "supplier"]
         
         // Bank Statement Keywords
-        let bankKeywords = ["bank", "account", "statement", "balance", "deposit", "withdrawal", "transfer", "atm", "check", "checking", "savings", "routing", "swift", "iban", "branch", "debit", "credit", "overdraft", "interest"]
+        let bankKeywords = ["bank", "account", "statement", "balance", "deposit", "withdrawal", "transfer", "atm", "check", "checking", "savings", "routing", "swift", "iban", "branch", "debit", "credit", "overdraft", "interest", "transaction history", "account summary"]
         
         // Medical Keywords
-        let medicalKeywords = ["doctor", "hospital", "clinic", "medical", "health", "prescription", "medicine", "pharmacy", "patient", "diagnosis", "treatment", "insurance", "copay", "deductible", "appointment", "lab", "test", "surgery", "therapy"]
+        let medicalKeywords = ["doctor", "hospital", "clinic", "medical", "health", "prescription", "medicine", "pharmacy", "patient", "diagnosis", "treatment", "insurance", "copay", "deductible", "appointment", "lab", "test", "surgery", "therapy", "physician", "nurse", "healthcare"]
+        
+        // Legal Keywords
+        let legalKeywords = ["legal", "attorney", "lawyer", "court", "case", "lawsuit", "contract", "agreement", "settlement", "litigation", "deposition", "affidavit", "subpoena", "judgment", "motion", "brief", "legal fees", "retainer", "paralegal", "law firm"]
+        
+        // Government Keywords
+        let govtKeywords = ["government", "federal", "state", "county", "city", "municipal", "license", "permit", "registration", "dmv", "social security", "passport", "immigration", "uscis", "customs", "usps", "postal service", "public", "official", "agency", "department"]
         
         // Calculate scores for each category
         let taxScore = calculateCategoryScore(words: words, categoryKeywords: taxKeywords)
         let receiptScore = calculateCategoryScore(words: words, categoryKeywords: receiptKeywords)
+        let invoiceBillScore = calculateCategoryScore(words: words, categoryKeywords: invoiceBillKeywords)
         let bankScore = calculateCategoryScore(words: words, categoryKeywords: bankKeywords)
         let medicalScore = calculateCategoryScore(words: words, categoryKeywords: medicalKeywords)
+        let legalScore = calculateCategoryScore(words: words, categoryKeywords: legalKeywords)
+        let govtScore = calculateCategoryScore(words: words, categoryKeywords: govtKeywords)
         
         // Find the highest scoring category
         let scores = [
-            (DocumentCategory.taxRelated, taxScore),
+            (DocumentCategory.tax, taxScore),
             (DocumentCategory.receipts, receiptScore),
-            (DocumentCategory.bankStatement, bankScore),
-            (DocumentCategory.medicalRelated, medicalScore)
+            (DocumentCategory.invoiceBills, invoiceBillScore),
+            (DocumentCategory.bank, bankScore),
+            (DocumentCategory.medical, medicalScore),
+            (DocumentCategory.legal, legalScore),
+            (DocumentCategory.govt, govtScore)
         ]
         
         let bestMatch = scores.max { $0.1 < $1.1 }
@@ -160,7 +174,7 @@ class DocumentClassificationService: ObservableObject {
         if let bestMatch = bestMatch, bestMatch.1 >= minConfidenceThreshold {
             return bestMatch.0
         } else {
-            return .others
+            return .otherDocuments
         }
     }
     
@@ -222,7 +236,7 @@ class DocumentClassificationService: ObservableObject {
         let words = extractKeywords(from: text.lowercased())
         
         switch category {
-        case .taxRelated:
+        case .tax:
             let taxKeywords = ["tax", "irs", "deduction", "form", "w-2", "1099", "refund"]
             return calculateCategoryScore(words: words, categoryKeywords: taxKeywords) * 5.0
             
@@ -230,15 +244,27 @@ class DocumentClassificationService: ObservableObject {
             let receiptKeywords = ["receipt", "purchase", "total", "paid", "store", "transaction"]
             return calculateCategoryScore(words: words, categoryKeywords: receiptKeywords) * 5.0
             
-        case .bankStatement:
+        case .invoiceBills:
+            let invoiceBillKeywords = ["invoice", "bill", "due date", "amount due", "services rendered"]
+            return calculateCategoryScore(words: words, categoryKeywords: invoiceBillKeywords) * 5.0
+            
+        case .bank:
             let bankKeywords = ["bank", "statement", "balance", "deposit", "account"]
             return calculateCategoryScore(words: words, categoryKeywords: bankKeywords) * 5.0
             
-        case .medicalRelated:
+        case .medical:
             let medicalKeywords = ["doctor", "hospital", "medical", "prescription", "patient"]
             return calculateCategoryScore(words: words, categoryKeywords: medicalKeywords) * 5.0
             
-        case .others:
+        case .legal:
+            let legalKeywords = ["legal", "attorney", "court", "contract", "lawsuit"]
+            return calculateCategoryScore(words: words, categoryKeywords: legalKeywords) * 5.0
+            
+        case .govt:
+            let govtKeywords = ["government", "license", "permit", "federal", "state"]
+            return calculateCategoryScore(words: words, categoryKeywords: govtKeywords) * 5.0
+            
+        case .otherDocuments:
             return 0.5 // Default confidence for unclassified documents
         }
     }
@@ -281,19 +307,25 @@ class DocumentClassificationService: ObservableObject {
 // MARK: - Supporting Models
 
 enum DocumentCategory: String, CaseIterable {
-    case taxRelated = "Tax Related"
+    case tax = "Tax"
     case receipts = "Receipts"
-    case bankStatement = "Bank Statement" 
-    case medicalRelated = "Medical Related"
-    case others = "Others"
+    case invoiceBills = "Invoices & Bills"
+    case bank = "Bank"
+    case medical = "Medical"
+    case legal = "Legal"
+    case govt = "Govt"
+    case otherDocuments = "Other Documents"
     
     var emoji: String {
         switch self {
-        case .taxRelated: return "📊"
+        case .tax: return "📊"
         case .receipts: return "🧾"
-        case .bankStatement: return "🏦"
-        case .medicalRelated: return "🏥"
-        case .others: return "📄"
+        case .invoiceBills: return "📄"
+        case .bank: return "🏦"
+        case .medical: return "🏥"
+        case .legal: return "⚖️"
+        case .govt: return "🏛️"
+        case .otherDocuments: return "📄"
         }
     }
 }

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct PhotoCategory {
-    let numPhotos: Int
+    var numPhotos: Int
     let title: String
     let icon: String
     let color: Color

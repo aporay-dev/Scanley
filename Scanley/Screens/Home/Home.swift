@@ -31,31 +31,66 @@ struct Home: View {
                         
                         Spacer()
                         
-                        // Temporary Delete All Data Button (For Testing)
-                        Button(action: {
-                            Task {
-                                await viewModel.deleteAllData(context: modelContext)
+                        HStack(spacing: 8) {
+                            // Classify Button (For Testing)
+                            Button(action: {
+                                Task {
+                                    await viewModel.classifyDocuments(context: modelContext)
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    if viewModel.isClassifying {
+                                        ProgressView()
+                                            .scaleEffect(0.7)
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                                    } else {
+                                        Image(systemName: "brain")
+                                            .font(.system(size: 12, weight: .medium))
+                                    }
+                                    Text(viewModel.isClassifying ? "Classifying..." : "Classify")
+                                        .font(.system(size: 12, weight: .medium))
+                                }
+                                .foregroundColor(.blue)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.blue.opacity(0.1))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                        )
+                                )
                             }
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 12, weight: .medium))
-                                Text("Delete All")
-                                    .font(.system(size: 12, weight: .medium))
+                            .buttonStyle(PlainButtonStyle())
+                            .disabled(viewModel.isClassifying)
+                            
+                            // Temporary Delete All Data Button (For Testing)
+                            Button(action: {
+                                Task {
+                                    await viewModel.deleteAllData(context: modelContext)
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 12, weight: .medium))
+                                    Text("Delete All")
+                                        .font(.system(size: 12, weight: .medium))
+                                }
+                                .foregroundColor(.red)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.red.opacity(0.1))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                                        )
+                                )
                             }
-                            .foregroundColor(.red)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.red.opacity(0.1))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                                    )
-                            )
+                            .buttonStyle(PlainButtonStyle())
                         }
-                        .buttonStyle(PlainButtonStyle())
                     }
                     .padding(.top, 1)
                     
@@ -63,6 +98,15 @@ struct Home: View {
                     SearchBox(onTapped: {
                         viewModel.openSearchView()
                     })
+                    
+                    // Classification Status (if active)
+                    if viewModel.isClassifying || !viewModel.classificationStatus.isEmpty {
+                        ClassificationStatusView(
+                            isClassifying: viewModel.isClassifying,
+                            progress: viewModel.classificationProgress,
+                            statusMessage: viewModel.classificationStatus
+                        )
+                    }
                     
                     // Summary section
                     ScanSummarySection(
@@ -268,9 +312,51 @@ struct PhotoCategoryCard: View {
                   .lineLimit(nil)
         }
         .padding(16)
-        .frame(height: 140)
+        .frame(height: 85)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(category.color)
+        .cornerRadius(12)
+    }
+}
+
+struct ClassificationStatusView: View {
+    let isClassifying: Bool
+    let progress: Double
+    let statusMessage: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "brain")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.white)
+                
+                Text("AI Classification")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                if isClassifying {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.8)
+                }
+            }
+            
+            Text(statusMessage)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.white.opacity(0.9))
+                .lineLimit(2)
+            
+            if isClassifying && progress > 0 {
+                ProgressView(value: progress)
+                    .progressViewStyle(LinearProgressViewStyle(tint: .white))
+                    .background(Color.white.opacity(0.3))
+            }
+        }
+        .padding(16)
+        .background(Color.blue.opacity(0.8))
         .cornerRadius(12)
     }
 }

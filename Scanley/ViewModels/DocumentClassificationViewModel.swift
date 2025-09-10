@@ -2,7 +2,7 @@
 //  DocumentClassificationViewModel.swift
 //  Scanley
 //
-//  Created by Anand Poray on 2025-09-10.
+//  Created by Claude on 2025-09-10.
 //
 
 import Foundation
@@ -78,6 +78,11 @@ class DocumentClassificationViewModel: ObservableObject {
             .mapValues { $0.count }
     }
     
+    func getCategoryCounts() -> [DocumentCategory: Int] {
+        return Dictionary(grouping: classificationService.classificationResults, by: { $0.classification })
+            .mapValues { $0.count }
+    }
+    
     // MARK: - Private Methods
     
     private func setupServiceObservers() {
@@ -135,7 +140,7 @@ class DocumentClassificationViewModel: ObservableObject {
 extension DocumentClassificationViewModel {
     
     var hasResults: Bool {
-        !classificationResults.isEmpty
+        !classificationService.classificationResults.isEmpty
     }
     
     var isIdle: Bool {
@@ -147,15 +152,15 @@ extension DocumentClassificationViewModel {
     }
     
     func getResultsFor(category: DocumentCategory) -> [DocumentClassificationResult] {
-        return classificationResults.filter { $0.classification == category }
+        return classificationService.classificationResults.filter { $0.classification == category }
     }
     
     func getAverageConfidence() -> Float {
-        guard !classificationResults.isEmpty else { return 0.0 }
-        return classificationResults.map { $0.confidence }.reduce(0, +) / Float(classificationResults.count)
+        guard !classificationService.classificationResults.isEmpty else { return 0.0 }
+        return classificationService.classificationResults.map { $0.confidence }.reduce(0, +) / Float(classificationService.classificationResults.count)
     }
     
     func getTotalProcessingTime() -> TimeInterval {
-        return classificationResults.map { $0.processingTime }.reduce(0, +)
+        return classificationService.classificationResults.map { $0.processingTime }.reduce(0, +)
     }
 }
