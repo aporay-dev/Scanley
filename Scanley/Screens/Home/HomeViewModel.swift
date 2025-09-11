@@ -13,6 +13,7 @@ class HomeViewModel: ObservableObject {
     @Published var showScanResults = false
     @Published var showSearchView = false
     @Published var showSimpleOCR = false
+    @Published var selectedCategory: String? = nil
     
     // Photo category data
     @Published var photoCategories: [PhotoCategory] = []
@@ -40,9 +41,15 @@ class HomeViewModel: ObservableObject {
             let statistics = try swiftDataManager.getDocumentStatistics(context: context)
             totalDocumentsFound = statistics.totalDocumentsWithText
             
+            print("🔍 DEBUG: loadScanSummary found \(totalDocumentsFound) documents in SwiftData")
+            
             // Get the most recent document date as last scan date
             let allDocuments = try swiftDataManager.fetchAllDocumentTexts(context: context)
             lastScanDate = allDocuments.map { $0.dateExtracted }.max()
+            
+            if totalDocumentsFound == 0 {
+                print("📄 No documents in database - user needs to run 'Scan Now' first")
+            }
             
         } catch {
             print("❌ Error loading scan summary: \(error)")
@@ -56,7 +63,14 @@ class HomeViewModel: ObservableObject {
     }
     
     func openSearchView() {
+        selectedCategory = nil  // Clear any previous category filter
         showSearchView = true
+    }
+    
+    func openCategorySearch(for category: PhotoCategory) {
+        selectedCategory = category.title
+        showSearchView = true
+        print("🔍 Opening search for category: \(category.title)")
     }
     
     func openSimpleOCR() {
@@ -87,6 +101,20 @@ class HomeViewModel: ObservableObject {
         }
         
         print("🤖 Starting document classification from HomeViewModel")
+        
+        // DEBUG: Check document count before classification
+        do {
+            let allDocs = try swiftDataManager.fetchAllDocumentTexts(context: context)
+            print("🔍 DEBUG: HomeViewModel sees \(allDocs.count) documents in context before classification")
+            if allDocs.count > 0 {
+                print("📋 DEBUG: Sample documents in HomeViewModel context:")
+                for (index, doc) in allDocs.prefix(3).enumerated() {
+                    print("   \(index + 1). ID: \(doc.documentID.prefix(8))... Type: \(doc.documentType)")
+                }
+            }
+        } catch {
+            print("❌ DEBUG: Error fetching documents in HomeViewModel: \(error)")
+        }
         
         // Set up classification ViewModel
         classificationViewModel.setModelContext(context)
@@ -123,6 +151,9 @@ class HomeViewModel: ObservableObject {
             await loadScanSummary(context: context)
         } else {
             classificationStatus = "No documents found to classify"
+            print("🔍 DEBUG: Classification completed but no results found")
+            print("💡 This means no DocumentText records exist in SwiftData database")
+            print("🚀 Next steps: Run 'Scan Now' to populate documents first, then try 'Classify' again")
         }
     }
     
@@ -137,7 +168,8 @@ class HomeViewModel: ObservableObject {
             PhotoCategory(numPhotos: 0, title: "Medical", icon: "qrcode", color: .orange.opacity(0.8)),
             PhotoCategory(numPhotos: 0, title: "Legal", icon: "scribble.variable", color: .purple.opacity(0.8)),
             PhotoCategory(numPhotos: 0, title: "Govt", icon: "hand.draw", color: .blue.opacity(0.7)),
-            PhotoCategory(numPhotos: 0, title: "Other Documents", icon: "photo", color: .gray)
+            PhotoCategory(numPhotos: 0, title: "Insurance", icon: "shield.checkered", color: .green.opacity(0.8)),
+            PhotoCategory(numPhotos: 0, title: "Other", icon: "photo", color: .gray)
         ]
     }
     
@@ -171,6 +203,8 @@ class HomeViewModel: ObservableObject {
                 documentCategory = .legal
             case "Govt":
                 documentCategory = .govt
+            case "Insurance":
+                documentCategory = .insurance
             case "Other Documents":
                 documentCategory = .otherDocuments
             default:

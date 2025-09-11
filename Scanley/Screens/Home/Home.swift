@@ -115,7 +115,12 @@ struct Home: View {
                     )
 
                     // Photo Categories Grid
-                    PhotoCategoriesGrid(categories: viewModel.photoCategories)
+                    PhotoCategoriesGrid(
+                        categories: viewModel.photoCategories,
+                        onCategoryTapped: { category in
+                            viewModel.openCategorySearch(for: category)
+                        }
+                    )
                     
                     Spacer()
                 }
@@ -180,7 +185,7 @@ struct Home: View {
             ScanResultsView()
         }
         .sheet(isPresented: $viewModel.showSearchView) {
-            SearchView(modelContext: modelContext)
+            SearchView(modelContext: modelContext, filterByCategory: viewModel.selectedCategory)
         }
         .sheet(isPresented: $viewModel.showSimpleOCR) {
             SimpleOCRView()
@@ -275,6 +280,7 @@ struct ScanSummarySection: View {
 
 struct PhotoCategoriesGrid: View {
     let categories: [PhotoCategory]
+    let onCategoryTapped: (PhotoCategory) -> Void
     
     var body: some View {
         LazyVGrid(columns: [
@@ -282,7 +288,12 @@ struct PhotoCategoriesGrid: View {
             GridItem(.flexible(), spacing: 10)
         ], spacing: 10) {
             ForEach(categories, id: \.title) { category in
-                PhotoCategoryCard(category: category)
+                PhotoCategoryCard(
+                    category: category,
+                    onTapped: {
+                        onCategoryTapped(category)
+                    }
+                )
             }
         }
         .padding(.top,10)
@@ -291,31 +302,35 @@ struct PhotoCategoriesGrid: View {
 
 struct PhotoCategoryCard: View {
     let category: PhotoCategory
+    let onTapped: () -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(String(category.numPhotos))
-                    .font(.system(size: 38, weight: .light))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.leading)
-                Spacer()
-                Image(systemName: category.icon)
-                    .font(.largeTitle)
-                    .foregroundColor(.white)
+        Button(action: onTapped) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(String(category.numPhotos))
+                        .font(.system(size: 38, weight: .light))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.leading)
+                    Spacer()
+                    Image(systemName: category.icon)
+                        .font(.largeTitle)
+                        .foregroundColor(.white)
+                }
+                
+                              Text(category.title)
+                    .font(.system(size: 18, weight: .bold))
+                      .foregroundColor(.white)
+                      .multilineTextAlignment(.leading)
+                      .lineLimit(nil)
             }
-            
-                          Text(category.title)
-                .font(.system(size: 18, weight: .bold))
-                  .foregroundColor(.white)
-                  .multilineTextAlignment(.leading)
-                  .lineLimit(nil)
+            .padding(16)
+            .frame(height: 85)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(category.color)
+            .cornerRadius(12)
         }
-        .padding(16)
-        .frame(height: 85)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(category.color)
-        .cornerRadius(12)
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

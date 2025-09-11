@@ -37,10 +37,26 @@ class DocumentClassificationService: ObservableObject {
             let allDocuments = try swiftDataManager.fetchAllDocumentTexts(context: context)
             let totalDocuments = allDocuments.count
             
-            guard totalDocuments > 0 else {
+            print("🔍 DEBUG: SwiftData query returned \(totalDocuments) documents")
+            
+            if totalDocuments == 0 {
                 print("📄 No documents found to classify")
+                print("🔍 DEBUG: This usually means:")
+                print("   1. No OCR scanning has been performed yet")
+                print("   2. Documents were not saved to SwiftData properly") 
+                print("   3. Database context issue")
+                print("💡 Try running 'Scan Now' first to populate documents in the database")
                 isClassifying = false
                 return
+            }
+            
+            // Log first few documents for debugging
+            print("📋 DEBUG: Sample documents found:")
+            for (index, doc) in allDocuments.prefix(3).enumerated() {
+                print("   \(index + 1). ID: \(doc.documentID.prefix(8))...")
+                print("      Text: \(String(doc.extractedText.prefix(100)))...")
+                print("      Type: \(doc.documentType)")
+                print("      Date: \(doc.dateExtracted)")
             }
             
             print("📊 Found \(totalDocuments) documents to classify")
@@ -135,10 +151,24 @@ class DocumentClassificationService: ObservableObject {
         let invoiceBillKeywords = ["invoice", "bill", "billing", "due date", "amount due", "payment terms", "net 30", "remit", "remittance", "services rendered", "professional services", "consultation", "hourly rate", "project", "milestone", "contractor", "vendor", "supplier"]
         
         // Bank Statement Keywords
-        let bankKeywords = ["bank", "account", "statement", "balance", "deposit", "withdrawal", "transfer", "atm", "check", "checking", "savings", "routing", "swift", "iban", "branch", "debit", "credit", "overdraft", "interest", "transaction history", "account summary"]
+        let bankKeywords = [
+            // Major Banks
+            "bmo", "bank of montreal", "td", "rbc", "royal bank", "scotiabank", "cibc", "hsbc", "wells fargo", "chase", "bank of america", "citibank", "jpmorgan",
+            // Banking Terms
+            "bank", "account", "statement", "balance", "deposit", "withdrawal", "transfer", "atm", "check", "checking", "savings", "routing", "swift code", "branch", "overdraft", "interest", "transaction history", "account summary",
+            // Card Types
+            "debit", "credit card", "mastercard", "visa", "amex", "american express",
+            // Payment Systems
+            "interac", "paypal", "zelle", "venmo", "electronic transfer", "wire transfer", "ach",
+            // Account Numbers and Codes
+            "account number", "sort code", "bsb", "transit", "institution number",
+            // Exclude problematic substrings that cause false positives
+            "!ibanez", "!ibanes" // Exclude guitar brand names
+        ]
         
-        // Medical Keywords
-        let medicalKeywords = ["doctor", "hospital", "clinic", "medical", "health", "prescription", "medicine", "pharmacy", "patient", "diagnosis", "treatment", "insurance", "copay", "deductible", "appointment", "lab", "test", "surgery", "therapy", "physician", "nurse", "healthcare"]
+        // Medical Keywords - Split into high-confidence and context-dependent
+        let highConfidenceMedicalKeywords = ["doctor", "hospital", "clinic", "medical", "health", "prescription", "medicine", "pharmacy", "patient", "diagnosis", "treatment", "copay", "deductible", "appointment", "surgery", "therapy", "physician", "nurse", "healthcare"]
+        let contextDependentMedicalKeywords = ["lab", "test", "insurance"]
         
         // Legal Keywords
         let legalKeywords = ["legal", "attorney", "lawyer", "court", "case", "lawsuit", "contract", "agreement", "settlement", "litigation", "deposition", "affidavit", "subpoena", "judgment", "motion", "brief", "legal fees", "retainer", "paralegal", "law firm"]
@@ -146,14 +176,18 @@ class DocumentClassificationService: ObservableObject {
         // Government Keywords
         let govtKeywords = ["government", "federal", "state", "county", "city", "municipal", "license", "permit", "registration", "dmv", "social security", "passport", "immigration", "uscis", "customs", "usps", "postal service", "public", "official", "agency", "department"]
         
+        // Insurance Keywords
+        let insuranceKeywords = ["insurance", "policy", "premium", "coverage", "claim", "deductible", "beneficiary", "insurer", "insured", "underwriter", "liability", "comprehensive", "collision", "auto insurance", "health insurance", "life insurance", "homeowner", "renters insurance", "policy number", "claim number", "adjuster", "quote", "renewal", "exclusion", "endorsement", "rider"]
+        
         // Calculate scores for each category
         let taxScore = calculateCategoryScore(words: words, categoryKeywords: taxKeywords)
         let receiptScore = calculateCategoryScore(words: words, categoryKeywords: receiptKeywords)
         let invoiceBillScore = calculateCategoryScore(words: words, categoryKeywords: invoiceBillKeywords)
         let bankScore = calculateCategoryScore(words: words, categoryKeywords: bankKeywords)
-        let medicalScore = calculateCategoryScore(words: words, categoryKeywords: medicalKeywords)
+        let medicalScore = calculateMedicalScore(words: words, text: lowercasedText, highConfidenceKeywords: highConfidenceMedicalKeywords, contextDependentKeywords: contextDependentMedicalKeywords)
         let legalScore = calculateCategoryScore(words: words, categoryKeywords: legalKeywords)
         let govtScore = calculateCategoryScore(words: words, categoryKeywords: govtKeywords)
+        let insuranceScore = calculateCategoryScore(words: words, categoryKeywords: insuranceKeywords)
         
         // Find the highest scoring category
         let scores = [
@@ -163,7 +197,8 @@ class DocumentClassificationService: ObservableObject {
             (DocumentCategory.bank, bankScore),
             (DocumentCategory.medical, medicalScore),
             (DocumentCategory.legal, legalScore),
-            (DocumentCategory.govt, govtScore)
+            (DocumentCategory.govt, govtScore),
+            (DocumentCategory.insurance, insuranceScore)
         ]
         
         let bestMatch = scores.max { $0.1 < $1.1 }
@@ -211,24 +246,134 @@ class DocumentClassificationService: ObservableObject {
         
         guard totalWords > 0 else { return 0.0 }
         
+        let joinedText = words.joined(separator: " ").lowercased()
+        
         for keyword in categoryKeywords {
-            let keywordParts = keyword.components(separatedBy: " ")
+            // Handle exclusion keywords (prefixed with !)
+            if keyword.hasPrefix("!") {
+                let exclusionTerm = String(keyword.dropFirst()).lowercased()
+                if joinedText.contains(exclusionTerm) {
+                    score -= 10.0 // Heavy penalty for exclusion matches
+                    print("❌ Exclusion keyword '\(exclusionTerm)' found - penalizing score")
+                    continue
+                }
+            }
+            
+            let keywordLower = keyword.lowercased()
+            let keywordParts = keywordLower.components(separatedBy: " ")
             
             if keywordParts.count == 1 {
-                // Single word keyword
-                let matches = words.filter { $0.contains(keyword) }.count
-                score += Float(matches) * 1.0
+                // Single word keyword - use whole word matching to avoid substring issues
+                let keywordMatches = words.filter { word in
+                    let wordLower = word.lowercased()
+                    // Exact match gets highest score
+                    if wordLower == keywordLower {
+                        return true
+                    }
+                    // Substring match (but be careful with short keywords)
+                    else if keywordLower.count >= 3 && wordLower.contains(keywordLower) {
+                        return true
+                    }
+                    return false
+                }.count
+                
+                if keywordMatches > 0 {
+                    // Higher score for exact matches, lower for substring matches
+                    let exactMatches = words.filter { $0.lowercased() == keywordLower }.count
+                    score += Float(exactMatches) * 2.0 + Float(keywordMatches - exactMatches) * 1.0
+                    print("✅ Keyword '\(keyword)' matched \(keywordMatches) times (exact: \(exactMatches))")
+                }
             } else {
-                // Multi-word keyword - check for partial matches
-                let keywordText = words.joined(separator: " ")
-                if keywordText.contains(keyword) {
-                    score += 2.0 // Higher weight for exact multi-word matches
+                // Multi-word keyword - check for phrase matches
+                if joinedText.contains(keywordLower) {
+                    score += 3.0 // Higher weight for exact multi-word matches
+                    print("✅ Multi-word keyword '\(keyword)' found")
                 }
             }
         }
         
-        // Normalize score based on text length
-        return score / totalWords
+        // Normalize score based on text length, but with a minimum threshold
+        let normalizedScore = totalWords > 0 ? score / totalWords : 0.0
+        
+        print("📊 Category score: \(score) / \(totalWords) words = \(normalizedScore)")
+        
+        return normalizedScore
+    }
+    
+    private func calculateMedicalScore(words: [String], text: String, highConfidenceKeywords: [String], contextDependentKeywords: [String]) -> Float {
+        var score: Float = 0.0
+        let totalWords = Float(words.count)
+        
+        guard totalWords > 0 else { return 0.0 }
+        
+        let joinedText = words.joined(separator: " ").lowercased()
+        
+        // Score high-confidence medical keywords normally
+        for keyword in highConfidenceKeywords {
+            let keywordLower = keyword.lowercased()
+            let keywordMatches = words.filter { word in
+                let wordLower = word.lowercased()
+                if wordLower == keywordLower {
+                    return true
+                } else if keywordLower.count >= 3 && wordLower.contains(keywordLower) {
+                    return true
+                }
+                return false
+            }.count
+            
+            if keywordMatches > 0 {
+                let exactMatches = words.filter { $0.lowercased() == keywordLower }.count
+                score += Float(exactMatches) * 2.0 + Float(keywordMatches - exactMatches) * 1.0
+                print("✅ High-confidence medical keyword '\(keyword)' matched \(keywordMatches) times")
+            }
+        }
+        
+        // Score context-dependent keywords only if medical context exists
+        let hasMedicalContext = highConfidenceKeywords.contains { keyword in
+            let keywordLower = keyword.lowercased()
+            return words.contains { $0.lowercased().contains(keywordLower) } || joinedText.contains(keywordLower)
+        }
+        
+        if hasMedicalContext {
+            for keyword in contextDependentKeywords {
+                let keywordLower = keyword.lowercased()
+                let keywordMatches = words.filter { word in
+                    let wordLower = word.lowercased()
+                    return wordLower == keywordLower || (keywordLower.count >= 3 && wordLower.contains(keywordLower))
+                }.count
+                
+                if keywordMatches > 0 {
+                    score += Float(keywordMatches) * 1.0
+                    print("✅ Context-dependent medical keyword '\(keyword)' matched \(keywordMatches) times (medical context found)")
+                }
+            }
+        } else {
+            // If context-dependent keywords exist without medical context, apply penalties for non-medical contexts
+            for keyword in contextDependentKeywords {
+                let keywordLower = keyword.lowercased()
+                if words.contains(where: { $0.lowercased() == keywordLower }) {
+                    // Check for automotive/technical context that would indicate false positive
+                    let automotiveTerms = ["car", "vehicle", "engine", "motor", "assembly", "manual", "instruction", "part", "component", "raleigh", "automotive"]
+                    let hasAutomotiveContext = automotiveTerms.contains { term in
+                        joinedText.contains(term.lowercased())
+                    }
+                    
+                    if hasAutomotiveContext {
+                        print("⚠️ Context-dependent keyword '\(keyword)' found in automotive context - not scoring")
+                        // Don't add to score, but don't penalize either
+                    } else {
+                        print("⚠️ Context-dependent keyword '\(keyword)' found without medical context - minimal score")
+                        score += 0.1 // Very minimal score for isolated context-dependent keywords
+                    }
+                }
+            }
+        }
+        
+        // Normalize score
+        let normalizedScore = totalWords > 0 ? score / totalWords : 0.0
+        print("📊 Medical score: \(score) / \(totalWords) words = \(normalizedScore) (medical context: \(hasMedicalContext))")
+        
+        return normalizedScore
     }
     
     private func calculateConfidence(for category: DocumentCategory, text: String) -> Float {
@@ -249,7 +394,7 @@ class DocumentClassificationService: ObservableObject {
             return calculateCategoryScore(words: words, categoryKeywords: invoiceBillKeywords) * 5.0
             
         case .bank:
-            let bankKeywords = ["bank", "statement", "balance", "deposit", "account"]
+            let bankKeywords = ["bmo", "bank", "statement", "balance", "deposit", "account", "debit", "credit card", "interac", "mastercard", "visa"]
             return calculateCategoryScore(words: words, categoryKeywords: bankKeywords) * 5.0
             
         case .medical:
@@ -263,6 +408,10 @@ class DocumentClassificationService: ObservableObject {
         case .govt:
             let govtKeywords = ["government", "license", "permit", "federal", "state"]
             return calculateCategoryScore(words: words, categoryKeywords: govtKeywords) * 5.0
+            
+        case .insurance:
+            let insuranceKeywords = ["insurance", "policy", "premium", "coverage", "claim", "deductible"]
+            return calculateCategoryScore(words: words, categoryKeywords: insuranceKeywords) * 5.0
             
         case .otherDocuments:
             return 0.5 // Default confidence for unclassified documents
@@ -314,6 +463,7 @@ enum DocumentCategory: String, CaseIterable {
     case medical = "Medical"
     case legal = "Legal"
     case govt = "Govt"
+    case insurance = "Insurance"
     case otherDocuments = "Other Documents"
     
     var emoji: String {
@@ -325,6 +475,7 @@ enum DocumentCategory: String, CaseIterable {
         case .medical: return "🏥"
         case .legal: return "⚖️"
         case .govt: return "🏛️"
+        case .insurance: return "🛡️"
         case .otherDocuments: return "📄"
         }
     }

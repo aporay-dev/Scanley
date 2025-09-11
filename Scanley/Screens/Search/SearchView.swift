@@ -18,8 +18,11 @@ struct SearchView: View {
     @State private var showDocumentDetail = false
     @Environment(\.presentationMode) var presentationMode
     
-    init(modelContext: ModelContext) {
-        self._searchService = StateObject(wrappedValue: DocumentSearchService(modelContext: modelContext))
+    private let filterByCategory: String?
+    
+    init(modelContext: ModelContext, filterByCategory: String? = nil) {
+        self.filterByCategory = filterByCategory
+        self._searchService = StateObject(wrappedValue: DocumentSearchService(modelContext: modelContext, filterByCategory: filterByCategory))
     }
     
     var body: some View {
@@ -65,7 +68,11 @@ struct SearchView: View {
                 } else if !searchText.isEmpty && searchService.searchResults.isEmpty {
                     NoResultsView(searchText: searchText)
                 } else if searchService.searchResults.isEmpty && searchText.isEmpty {
-                    SearchEmptyStateView()
+                    if filterByCategory != nil {
+                        CategoryEmptyStateView(category: filterByCategory!)
+                    } else {
+                        SearchEmptyStateView()
+                    }
                 } else {
                     // Search Results Header
                     HStack {
@@ -90,10 +97,14 @@ struct SearchView: View {
                 Spacer()
             }
             .onAppear {
-                // The search service will use the SwiftData to find documents
-                // Documents are accessible through their stored OCR text data
+                // If filtering by category, automatically load all documents in that category
+                if let category = filterByCategory {
+                    Task {
+                        await searchService.loadCategoryDocuments(category: category)
+                    }
+                }
             }
-            .navigationTitle("Search Documents")
+            .navigationTitle(filterByCategory != nil ? filterByCategory! : "Search Documents")
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(leading: Button("Close") {
                 presentationMode.wrappedValue.dismiss()
@@ -271,6 +282,59 @@ struct SearchEmptyStateView: View {
             }
         }
         .padding(.top, 100)
+    }
+}
+
+struct CategoryEmptyStateView: View {
+    let category: String
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: categoryIcon)
+                .font(.system(size: 64))
+                .foregroundColor(.gray)
+            
+            VStack(spacing: 8) {
+                Text("No \(category) Documents")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Text("Documents classified as \(category) will appear here after you run AI classification")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+            
+            VStack(spacing: 8) {
+                Text("To populate this category:")
+                    .font(.headline)
+                    .padding(.top, 20)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("1. Scan documents using 'Test OCR' or 'Scan Now'")
+                    Text("2. Use 'Classify' button to run AI classification")
+                    Text("3. Documents will be automatically categorized")
+                }
+                .font(.body)
+                .foregroundColor(.secondary)
+            }
+        }
+        .padding(.top, 60)
+    }
+    
+    private var categoryIcon: String {
+        switch category {
+        case "Tax": return "briefcase"
+        case "Receipts": return "person.crop.rectangle.fill"
+        case "Invoices & Bills": return "doc.text"
+        case "Bank": return "creditcard"
+        case "Medical": return "qrcode"
+        case "Legal": return "scribble.variable"
+        case "Govt": return "hand.draw"
+        case "Other Documents": return "photo"
+        default: return "doc.text.magnifyingglass"
+        }
     }
 }
 

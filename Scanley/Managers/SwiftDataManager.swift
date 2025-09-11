@@ -88,18 +88,32 @@ class SwiftDataManager: ObservableObject {
     
     func searchDocumentTexts(
         query: String,
-        context: ModelContext
+        context: ModelContext,
+        filterByCategory: String? = nil
     ) throws -> [DocumentText] {
         let searchTerms = query.lowercased().components(separatedBy: .whitespacesAndNewlines)
             .filter { !$0.isEmpty }
         
-        guard !searchTerms.isEmpty else { return [] }
+        guard !searchTerms.isEmpty else { 
+            // If no search terms but category filter exists, return all documents in that category
+            if let category = filterByCategory {
+                return try fetchDocumentTexts(filteredBy: category, context: context)
+            }
+            return [] 
+        }
         
-        // Fetch all documents and filter in memory for complex text matching
-        let descriptor = FetchDescriptor<DocumentText>()
-        let allDocumentTexts = try context.fetch(descriptor)
+        // Start with category filtering if specified
+        var documentsToSearch: [DocumentText]
+        if let category = filterByCategory {
+            documentsToSearch = try fetchDocumentTexts(filteredBy: category, context: context)
+            print("🔍 Searching within \(category) category: \(documentsToSearch.count) documents")
+        } else {
+            // Fetch all documents for search
+            let descriptor = FetchDescriptor<DocumentText>()
+            documentsToSearch = try context.fetch(descriptor)
+        }
         
-        return allDocumentTexts.filter { documentText in
+        return documentsToSearch.filter { documentText in
             let text = documentText.extractedText.lowercased()
             let keyPhrases = documentText.keyPhrases
             let summary = documentText.textSummary?.lowercased() ?? ""
@@ -111,6 +125,18 @@ class SwiftDataManager: ObservableObject {
                        summary.contains(termLower)
             }
         }
+    }
+    
+    func fetchDocumentTexts(filteredBy category: String, context: ModelContext) throws -> [DocumentText] {
+        let descriptor = FetchDescriptor<DocumentText>(
+            predicate: #Predicate<DocumentText> { documentText in
+                documentText.documentType == category
+            },
+            sortBy: [SortDescriptor(\DocumentText.dateExtracted, order: .reverse)]
+        )
+        let results = try context.fetch(descriptor)
+        print("📊 Found \(results.count) documents for category: \(category)")
+        return results
     }
     
     // MARK: - App Launch Orphaned Records Cleanup

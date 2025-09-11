@@ -187,6 +187,26 @@ class SimpleOCRViewModel: ObservableObject {
         // Finalize any remaining batch operations
         await batchDocumentSaver?.finalizeAndSave()
         
+        // CRITICAL: Save background context to ensure data is persisted to main context
+        if let bgContext = backgroundContext {
+            do {
+                try bgContext.save()
+                print("💾 Background context saved successfully")
+                
+                // Refresh main context to see background changes
+                if let mainContext = modelContext {
+                    try mainContext.save()
+                    print("🔄 Main context refreshed")
+                    
+                    // Verify documents are now visible in main context
+                    let allDocs = try swiftDataManager.fetchAllDocumentTexts(context: mainContext)
+                    print("🔍 DEBUG: After OCR scan, main context has \(allDocs.count) documents")
+                }
+            } catch {
+                print("❌ Error saving contexts after OCR: \(error)")
+            }
+        }
+        
         // Print performance summary
         let stats = performanceMonitor.getPerformanceStats()
         print("📈 Performance Summary: avg processing time: \(String(format: "%.3f", stats.averageProcessingTime))s, total processed: \(stats.totalProcessedCount)")

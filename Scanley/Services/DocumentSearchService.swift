@@ -17,9 +17,16 @@ class DocumentSearchService: ObservableObject {
     @Published var searchQuery = ""
     
     private var modelContext: ModelContext
+    private let swiftDataManager = SwiftDataManager.shared
+    private let filterByCategory: String?
     
-    init(modelContext: ModelContext) {
+    init(modelContext: ModelContext, filterByCategory: String? = nil) {
         self.modelContext = modelContext
+        self.filterByCategory = filterByCategory
+        
+        if let category = filterByCategory {
+            print("🏷️ DocumentSearchService initialized with category filter: \(category)")
+        }
     }
     
     // MARK: - Search Methods
@@ -48,6 +55,28 @@ class DocumentSearchService: ObservableObject {
         searchResults = []
     }
     
+    func loadCategoryDocuments(category: String) async {
+        print("📂 Loading all documents for category: \(category)")
+        
+        isSearching = true
+        searchQuery = ""
+        
+        do {
+            let documents = try swiftDataManager.fetchDocumentTexts(filteredBy: category, context: modelContext)
+            let results = convertToSearchResults(documents, searchTerms: [])
+            
+            print("📊 Loaded \(results.count) documents for category \(category)")
+            
+            searchResults = results
+            isSearching = false
+            
+        } catch {
+            print("❌ Error loading category documents: \(error)")
+            searchResults = []
+            isSearching = false
+        }
+    }
+    
     // MARK: - Private Search Implementation
     
     private func performSearch(query: String) async -> [SearchResult] {
@@ -58,55 +87,98 @@ class DocumentSearchService: ObservableObject {
         guard !searchTerms.isEmpty else { return [] }
         
         do {
-            // Fetch all document texts
-            let descriptor = FetchDescriptor<DocumentText>()
-            let allDocumentTexts = try modelContext.fetch(descriptor)
-            
-            print("📚 Found \(allDocumentTexts.count) documents in SwiftData")
-            for (idx, doc) in allDocumentTexts.enumerated() {
-                print("   Document \(idx + 1): ID=\(doc.documentID)")
-                print("   Text preview: '\(String(doc.extractedText.prefix(100)))...'")
-                print("   Confidence: \(doc.confidence)")
+            // Use SwiftDataManager for filtering by category if specified
+            let allDocumentTexts: [DocumentText]
+            if let category = filterByCategory {
+                allDocumentTexts = try swiftDataManager.searchDocumentTexts(
+                    query: query,
+                    context: modelContext,
+                    filterByCategory: category
+                )
+            } else {
+                allDocumentTexts = try swiftDataManager.searchDocumentTexts(
+                    query: query,
+                    context: modelContext
+                )
             }
             
-            var matchingResults: [SearchResult] = []
-            
-            for documentText in allDocumentTexts {
-                let relevanceScore = calculateRelevanceScore(documentText: documentText, searchTerms: searchTerms)
-                
-                print("🎯 Document \(documentText.documentID): relevance score = \(relevanceScore)")
-                
-                if relevanceScore > 0 {
-                    // Extract matching snippets
-                    let snippets = extractMatchingSnippets(from: documentText.extractedText, searchTerms: searchTerms)
-                    
-                    // Only include documents that have actual matching text snippets
-                    if !snippets.isEmpty {
-                        let searchResult = SearchResult(
-                            documentID: documentText.documentID,
-                            documentType: documentText.documentType,
-                            dateExtracted: documentText.dateExtracted,
-                            extractedText: documentText.extractedText,
-                            matchingSnippets: snippets,
-                            relevanceScore: relevanceScore,
-                            ocrConfidence: documentText.confidence,
-                            textSummary: documentText.textSummary
-                        )
-                        
-                        matchingResults.append(searchResult)
-                    } else {
-                        print("🚫 Document \(documentText.documentID) had relevance score \(relevanceScore) but no matching snippets - excluded from results")
-                    }
-                }
-            }
-            
-            // Sort by relevance score (highest first)
-            return matchingResults.sorted { $0.relevanceScore > $1.relevanceScore }
+            return convertToSearchResults(allDocumentTexts, searchTerms: searchTerms)
             
         } catch {
             print("Error performing search: \(error)")
             return []
         }
+    }
+    
+    private func convertToSearchResults(_ documents: [DocumentText], searchTerms: [String]) -> [SearchResult] {
+        print("📚 Converting \(documents.count) documents to search results")
+        
+        var matchingResults: [SearchResult] = []
+        
+        for documentText in documents {
+            let relevanceScore: Float
+            let snippets: [String]
+            
+            if searchTerms.isEmpty {
+                // For category browsing (no search terms), show all documents with default relevance
+                relevanceScore = 50.0 * documentText.confidence
+                snippets = createDefaultSnippets(from: documentText.extractedText)
+                print("📂 Category browsing - Document \(documentText.documentID.prefix(8)): relevance \(relevanceScore)")
+            } else {
+                // For search, calculate relevance and extract matching snippets
+                relevanceScore = calculateRelevanceScore(documentText: documentText, searchTerms: searchTerms)
+                print("🎯 Search relevance for \(documentText.documentID.prefix(8)): \(relevanceScore)")
+                print("📄 Document text preview: '\(String(documentText.extractedText.prefix(100)))...'")
+                
+                snippets = extractMatchingSnippets(from: documentText.extractedText, searchTerms: searchTerms)
+                
+                // Debug: Check why snippets might be empty
+                if relevanceScore > 0 && snippets.isEmpty {
+                    print("🚫 Document \(documentText.documentID.prefix(8)) EXCLUDED:")
+                    print("   📊 Relevance score: \(relevanceScore)")
+                    print("   📝 Snippets found: \(snippets.count)")
+                    print("   🔍 Search terms: \(searchTerms)")
+                    print("   📄 Full text: '\(documentText.extractedText)'")
+                    print("   ❌ Reason: No matching snippets despite positive relevance")
+                    continue
+                }
+                
+                if relevanceScore <= 0 {
+                    print("🚫 Document \(documentText.documentID.prefix(8)) EXCLUDED: Zero relevance score")
+                    continue
+                }
+            }
+            
+            if relevanceScore > 0 {
+                let searchResult = SearchResult(
+                    documentID: documentText.documentID,
+                    documentType: documentText.documentType,
+                    dateExtracted: documentText.dateExtracted,
+                    extractedText: documentText.extractedText,
+                    matchingSnippets: snippets,
+                    relevanceScore: relevanceScore,
+                    ocrConfidence: documentText.confidence,
+                    textSummary: documentText.textSummary
+                )
+                
+                matchingResults.append(searchResult)
+                print("✅ Document \(documentText.documentID.prefix(8)): relevance \(relevanceScore), snippets: \(snippets.count)")
+            }
+        }
+        
+        // Sort by relevance score (highest first)
+        return matchingResults.sorted { $0.relevanceScore > $1.relevanceScore }
+    }
+    
+    private func createDefaultSnippets(from text: String) -> [String] {
+        // For category browsing, create snippets from the beginning of the document
+        let sentences = text.components(separatedBy: CharacterSet(charactersIn: ".!?\n"))
+        let meaningfulSentences = sentences
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { $0.count > 15 }
+            .prefix(2)
+        
+        return Array(meaningfulSentences)
     }
     
     private func calculateRelevanceScore(documentText: DocumentText, searchTerms: [String]) -> Float {
@@ -151,9 +223,13 @@ class DocumentSearchService: ObservableObject {
     }
     
     private func extractMatchingSnippets(from text: String, searchTerms: [String]) -> [String] {
-        let sentences = text.components(separatedBy: CharacterSet(charactersIn: ".!?\n"))
         var matchingSnippets: [String] = []
         
+        // Split by sentences and newlines for different snippet strategies
+        let sentences = text.components(separatedBy: CharacterSet(charactersIn: ".!?"))
+        let lines = text.components(separatedBy: .newlines)
+        
+        // Strategy 1: Look for sentence-based matches (traditional documents)
         for sentence in sentences {
             let sentenceLower = sentence.lowercased()
             
@@ -162,14 +238,73 @@ class DocumentSearchService: ObservableObject {
                     let trimmedSentence = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !trimmedSentence.isEmpty && trimmedSentence.count > 10 {
                         matchingSnippets.append(trimmedSentence)
+                        print("📝 Found sentence snippet: '\(trimmedSentence)'")
                         break // Don't add the same sentence multiple times
                     }
                 }
             }
         }
         
+        // Strategy 2: Look for line-based matches (cards, forms, structured documents)
+        if matchingSnippets.isEmpty {
+            for line in lines {
+                let lineLower = line.lowercased()
+                
+                for term in searchTerms {
+                    if lineLower.contains(term.lowercased()) {
+                        let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmedLine.isEmpty && trimmedLine.count >= 2 {
+                            // For short matches, include surrounding context
+                            if trimmedLine.count < 8 {
+                                let context = createContextSnippet(for: trimmedLine, in: text, searchTerm: term)
+                                matchingSnippets.append(context)
+                                print("📝 Found line snippet with context: '\(context)'")
+                            } else {
+                                matchingSnippets.append(trimmedLine)
+                                print("📝 Found line snippet: '\(trimmedLine)'")
+                            }
+                            break // Don't add the same line multiple times
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Strategy 3: Fallback - if no structured snippets, create context around matches
+        if matchingSnippets.isEmpty {
+            for term in searchTerms {
+                if text.lowercased().contains(term.lowercased()) {
+                    let contextSnippet = createContextSnippet(for: term, in: text, searchTerm: term)
+                    if !contextSnippet.isEmpty {
+                        matchingSnippets.append(contextSnippet)
+                        print("📝 Found fallback context snippet: '\(contextSnippet)'")
+                    }
+                }
+            }
+        }
+        
+        print("🔍 Total snippets found: \(matchingSnippets.count)")
+        
         // Return up to 3 most relevant snippets
         return Array(matchingSnippets.prefix(3))
+    }
+    
+    private func createContextSnippet(for matchTerm: String, in text: String, searchTerm: String) -> String {
+        let words = text.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+        
+        // Find the index of the matching word
+        guard let matchIndex = words.firstIndex(where: { $0.lowercased().contains(searchTerm.lowercased()) }) else {
+            return matchTerm
+        }
+        
+        // Create context with 2 words before and after (if available)
+        let contextStart = max(0, matchIndex - 2)
+        let contextEnd = min(words.count, matchIndex + 3)
+        let contextWords = Array(words[contextStart..<contextEnd])
+        
+        let snippet = contextWords.joined(separator: " ")
+        return snippet.count > 3 ? snippet : matchTerm
     }
     
     // MARK: - Search Suggestions
