@@ -34,13 +34,8 @@ class SearchViewModel: ObservableObject {
         isSearching = true
         searchQuery = query
         
-        do {
-            let results = await performSearch(query: query)
-            searchResults = results
-        } catch {
-            print("Search error: \(error)")
-            searchResults = []
-        }
+        let results = await performSearch(query: query)
+        searchResults = results
         
         isSearching = false
     }

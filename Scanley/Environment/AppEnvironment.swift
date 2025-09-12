@@ -118,15 +118,21 @@ class SearchStateEnvironment: ObservableObject {
 // MARK: - Environment Keys
 
 struct AppSettingsEnvironmentKey: EnvironmentKey {
-    static let defaultValue = AppSettingsEnvironment.shared
+    @MainActor static var defaultValue: AppSettingsEnvironment {
+        AppSettingsEnvironment.shared
+    }
 }
 
 struct ScanStateEnvironmentKey: EnvironmentKey {
-    static let defaultValue = ScanStateEnvironment.shared
+    @MainActor static var defaultValue: ScanStateEnvironment {
+        ScanStateEnvironment.shared
+    }
 }
 
 struct SearchStateEnvironmentKey: EnvironmentKey {
-    static let defaultValue = SearchStateEnvironment.shared
+    @MainActor static var defaultValue: SearchStateEnvironment {
+        SearchStateEnvironment.shared
+    }
 }
 
 extension EnvironmentValues {

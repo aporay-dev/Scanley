@@ -181,9 +181,6 @@ struct Home: View {
                 }
             }
         }
-        .sheet(isPresented: $viewModel.showScanResults) {
-            ScanResultsView()
-        }
         .sheet(isPresented: $viewModel.showSearchView) {
             SearchView(modelContext: modelContext, filterByCategory: viewModel.selectedCategory)
         }

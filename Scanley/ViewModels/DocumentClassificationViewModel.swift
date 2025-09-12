@@ -48,21 +48,14 @@ class DocumentClassificationViewModel: ObservableObject {
         
         print("🚀 Starting document classification from ViewModel")
         
-        do {
-            await classificationService.classifyAllDocuments(context: context)
-            
-            if !classificationService.classificationResults.isEmpty {
-                statusMessage = "Classification completed successfully!"
-                print("✅ Classification completed from ViewModel")
-                printViewModelSummary()
-            } else {
-                statusMessage = "No documents found to classify"
-            }
-            
-        } catch {
-            lastError = error.localizedDescription
-            statusMessage = "Classification failed: \(error.localizedDescription)"
-            print("❌ Classification failed in ViewModel: \(error)")
+        await classificationService.classifyAllDocuments(context: context)
+        
+        if !classificationService.classificationResults.isEmpty {
+            statusMessage = "Classification completed successfully!"
+            print("✅ Classification completed from ViewModel")
+            printViewModelSummary()
+        } else {
+            statusMessage = "No documents found to classify"
         }
     }
     
