@@ -10,7 +10,6 @@ import SwiftData
 
 @MainActor
 class HomeViewModel: ObservableObject {
-    @Published var showScanResults = false
     @Published var showSearchView = false
     @Published var showSimpleOCR = false
     @Published var selectedCategory: String? = nil
@@ -48,7 +47,7 @@ class HomeViewModel: ObservableObject {
             lastScanDate = allDocuments.map { $0.dateExtracted }.max()
             
             if totalDocumentsFound == 0 {
-                print("📄 No documents in database - user needs to run 'Scan Now' first")
+                print("📄 No documents in database - user needs to scan documents first")
             }
             
         } catch {
@@ -58,9 +57,6 @@ class HomeViewModel: ObservableObject {
         }
     }
     
-    func openScanResults() {
-        showScanResults = true
-    }
     
     func openSearchView() {
         selectedCategory = nil  // Clear any previous category filter
@@ -153,7 +149,7 @@ class HomeViewModel: ObservableObject {
             classificationStatus = "No documents found to classify"
             print("🔍 DEBUG: Classification completed but no results found")
             print("💡 This means no DocumentText records exist in SwiftData database")
-            print("🚀 Next steps: Run 'Scan Now' to populate documents first, then try 'Classify' again")
+            print("🚀 Next steps: Scan documents to populate data first, then try 'Classify' again")
         }
     }
     
@@ -169,7 +165,6 @@ class HomeViewModel: ObservableObject {
             PhotoCategory(numPhotos: 0, title: "Legal", icon: "scribble.variable", color: .purple.opacity(0.8)),
             PhotoCategory(numPhotos: 0, title: "Govt", icon: "hand.draw", color: .blue.opacity(0.7)),
             PhotoCategory(numPhotos: 0, title: "Insurance", icon: "shield.checkered", color: .green.opacity(0.8)),
-            PhotoCategory(numPhotos: 0, title: "Other", icon: "photo", color: .gray)
         ]
     }
     
@@ -205,8 +200,6 @@ class HomeViewModel: ObservableObject {
                 documentCategory = .govt
             case "Insurance":
                 documentCategory = .insurance
-            case "Other Documents":
-                documentCategory = .otherDocuments
             default:
                 documentCategory = nil
             }

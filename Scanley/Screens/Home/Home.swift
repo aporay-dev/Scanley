@@ -156,25 +156,6 @@ struct Home: View {
                             .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
                         }
                         
-                        // Original Scan Now Button
-                        Button(action: {
-                            viewModel.openScanResults()
-                        }) {
-                            HStack(spacing: 8) {
-                                Text("Scan Now")
-                                    .font(.system(size: 16, weight: .medium))
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 16, weight: .medium))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 25)
-                                    .fill(Color.cyan)
-                            )
-                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                        }
                     }
                     .padding(.trailing, 20)
                     .padding(.bottom, 20) // Account for safe area

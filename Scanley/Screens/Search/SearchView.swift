@@ -312,7 +312,7 @@ struct CategoryEmptyStateView: View {
                     .padding(.top, 20)
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("1. Scan documents using 'Test OCR' or 'Scan Now'")
+                    Text("1. Scan documents using 'Test OCR'")
                     Text("2. Use 'Classify' button to run AI classification")
                     Text("3. Documents will be automatically categorized")
                 }
@@ -332,7 +332,6 @@ struct CategoryEmptyStateView: View {
         case "Medical": return "qrcode"
         case "Legal": return "scribble.variable"
         case "Govt": return "hand.draw"
-        case "Other Documents": return "photo"
         default: return "doc.text.magnifyingglass"
         }
     }

@@ -45,7 +45,7 @@ class DocumentClassificationService: ObservableObject {
                 print("   1. No OCR scanning has been performed yet")
                 print("   2. Documents were not saved to SwiftData properly") 
                 print("   3. Database context issue")
-                print("💡 Try running 'Scan Now' first to populate documents in the database")
+                print("💡 Try scanning documents first to populate the database")
                 isClassifying = false
                 return
             }
@@ -209,7 +209,7 @@ class DocumentClassificationService: ObservableObject {
         if let bestMatch = bestMatch, bestMatch.1 >= minConfidenceThreshold {
             return bestMatch.0
         } else {
-            return .otherDocuments
+            return .receipts
         }
     }
     
@@ -413,8 +413,6 @@ class DocumentClassificationService: ObservableObject {
             let insuranceKeywords = ["insurance", "policy", "premium", "coverage", "claim", "deductible"]
             return calculateCategoryScore(words: words, categoryKeywords: insuranceKeywords) * 5.0
             
-        case .otherDocuments:
-            return 0.5 // Default confidence for unclassified documents
         }
     }
     
@@ -464,7 +462,6 @@ enum DocumentCategory: String, CaseIterable {
     case legal = "Legal"
     case govt = "Govt"
     case insurance = "Insurance"
-    case otherDocuments = "Other Documents"
     
     var emoji: String {
         switch self {
@@ -476,7 +473,6 @@ enum DocumentCategory: String, CaseIterable {
         case .legal: return "⚖️"
         case .govt: return "🏛️"
         case .insurance: return "🛡️"
-        case .otherDocuments: return "📄"
         }
     }
 }

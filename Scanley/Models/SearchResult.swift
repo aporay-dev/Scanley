@@ -24,6 +24,6 @@ struct SearchResult: Identifiable {
     
     // Helper to get DocumentType enum from string
     var documentTypeEnum: DocumentType {
-        return DocumentType(rawValue: documentType) ?? .other
+        return DocumentType(rawValue: documentType) ?? .receipt
     }
 }
