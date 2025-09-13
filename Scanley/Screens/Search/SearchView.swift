@@ -325,13 +325,20 @@ struct CategoryEmptyStateView: View {
     
     private var categoryIcon: String {
         switch category {
-        case "Tax": return "briefcase"
-        case "Receipts": return "person.crop.rectangle.fill"
-        case "Invoices & Bills": return "doc.text"
-        case "Bank": return "creditcard"
-        case "Medical": return "qrcode"
-        case "Legal": return "scribble.variable"
-        case "Govt": return "hand.draw"
+        case "Tax": 
+            return "briefcase"
+        case "Receipts": 
+            return "person.crop.rectangle.fill"
+        case "Invoices & Bills": 
+            return "doc.text"
+        case "Bank": 
+            return "creditcard"
+        case "Medical": 
+            return "qrcode"
+        case "Legal": 
+            return "scribble.variable"
+        case "Govt": 
+            return "hand.draw"
         default: return "doc.text.magnifyingglass"
         }
     }
@@ -406,49 +413,8 @@ struct SearchResultThumbnail: View {
                                 }
                             )
                     }
-                    
-                    // Relevance score overlay
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Text("\(Int(result.relevanceScore))%")
-                                .font(.caption2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.green)
-                                .cornerRadius(4)
-                                .padding(.top, 6)
-                                .padding(.trailing, 6)
-                        }
-                        Spacer()
-                    }
                 }
                 .cornerRadius(8)
-                
-                // Document info below thumbnail
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(result.documentTypeEnum.rawValue)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(result.documentTypeEnum.color)
-                        .lineLimit(1)
-                    
-                    Text(result.dateExtracted, style: .date)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                    
-                    if let summary = result.textSummary, !summary.isEmpty {
-                        Text(summary)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .buttonStyle(PlainButtonStyle())
