@@ -158,12 +158,12 @@ class HomeViewModel: ObservableObject {
     private func setupPhotoCategories() {
         photoCategories = [
             PhotoCategory(numPhotos: 0, title: "Tax", icon: "briefcase", color: .red.opacity(0.8)),
-            PhotoCategory(numPhotos: 0, title: "Receipts", icon: "person.crop.rectangle.fill", color: .blue.opacity(0.8)),
+            PhotoCategory(numPhotos: 0, title: "Receipts", icon: "newspaper", color: .blue.opacity(0.8)),
             PhotoCategory(numPhotos: 0, title: "Invoices & Bills", icon: "doc.text", color: .blue.opacity(0.9)),
             PhotoCategory(numPhotos: 0, title: "Bank", icon: "creditcard", color: .cyan.opacity(0.8)),
-            PhotoCategory(numPhotos: 0, title: "Medical", icon: "qrcode", color: .orange.opacity(0.8)),
-            PhotoCategory(numPhotos: 0, title: "Legal", icon: "scribble.variable", color: .purple.opacity(0.8)),
-            PhotoCategory(numPhotos: 0, title: "Govt", icon: "hand.draw", color: .blue.opacity(0.7)),
+            PhotoCategory(numPhotos: 0, title: "Medical", icon: "cross", color: .orange.opacity(0.8)),
+            PhotoCategory(numPhotos: 0, title: "Legal", icon: "signature", color: .purple.opacity(0.8)),
+            PhotoCategory(numPhotos: 0, title: "Govt", icon: "building.columns", color: .blue.opacity(0.7)),
             PhotoCategory(numPhotos: 0, title: "Insurance", icon: "shield.checkered", color: .green.opacity(0.8)),
         ]
     }
