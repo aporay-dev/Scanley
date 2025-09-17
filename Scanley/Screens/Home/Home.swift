@@ -12,6 +12,13 @@ struct Home: View {
     @StateObject private var viewModel = HomeViewModel()
     @StateObject private var dataManager = DocumentDataManager.shared
     @Environment(\.modelContext) private var modelContext
+
+    @State private var searchText = ""
+    @State private var showSearchSuggestions = false
+    @State private var searchSuggestions: [String] = []
+    @State private var searchService: DocumentSearchService?
+    @State private var showSearchResults = false
+    @State private var isSearching = false
     
     var body: some View {
         ZStack {
@@ -35,11 +42,56 @@ struct Home: View {
                     }
                     .padding(.top, 1)
                     
-                    // Search Box
-                    SearchBox(onTapped: {
-                        viewModel.openSearchView()
-                    })
-                    
+                    // Functional Search Box
+                    FunctionalSearchBox(
+                        searchText: $searchText,
+                        showSuggestions: $showSearchSuggestions,
+                        suggestions: searchSuggestions,
+                        onSearchTextChanged: { newText in
+                            searchText = newText
+                            if newText.isEmpty {
+                                searchService?.clearSearch()
+                                searchSuggestions = []
+                                showSearchSuggestions = false
+                            } else if newText.count >= 2 {
+                                Task {
+                                    if searchService == nil {
+                                        searchService = DocumentSearchService(modelContext: modelContext)
+                                    }
+                                    searchSuggestions = await searchService?.getSearchSuggestions(for: newText) ?? []
+                                    showSearchSuggestions = true
+                                }
+                            }
+                        },
+                        onSearchSubmitted: {
+                            showSearchSuggestions = false
+                            if !searchText.isEmpty {
+                                Task {
+                                    if searchService == nil {
+                                        searchService = DocumentSearchService(modelContext: modelContext)
+                                    }
+                                    isSearching = true
+                                    await searchService?.search(query: searchText)
+                                    isSearching = false
+                                    showSearchResults = true
+                                }
+                            }
+                        },
+                        onSuggestionSelected: { suggestion in
+                            searchText = suggestion
+                            showSearchSuggestions = false
+                            Task {
+                                if searchService == nil {
+                                    searchService = DocumentSearchService(modelContext: modelContext)
+                                }
+                                isSearching = true
+                                await searchService?.search(query: suggestion)
+                                isSearching = false
+                                showSearchResults = true
+                            }
+                        }
+                    )
+
                     // Classification Status (if active)
                     if viewModel.isClassifying || !viewModel.classificationStatus.isEmpty {
                         ClassificationStatusView(
@@ -176,36 +228,68 @@ struct Home: View {
         .sheet(isPresented: $viewModel.showSimpleOCR) {
             SimpleOCRView()
         }
+        .sheet(isPresented: $showSearchResults) {
+            if let searchService = searchService {
+                HomeSearchResultsView(
+                    searchText: searchText,
+                    searchService: searchService,
+                    isSearching: isSearching,
+                    onResultTapped: { _ in }, // Not used anymore
+                    onDismiss: {
+                        showSearchResults = false
+                    }
+                )
+            }
+        }
         .task {
             await viewModel.loadScanSummary(context: modelContext)
         }
     }
 }
 
-struct SearchBox: View {
-    let onTapped: () -> Void
-    
+struct FunctionalSearchBox: View {
+    @Binding var searchText: String
+    @Binding var showSuggestions: Bool
+    let suggestions: [String]
+    let onSearchTextChanged: (String) -> Void
+    let onSearchSubmitted: () -> Void
+    let onSuggestionSelected: (String) -> Void
+
     var body: some View {
-        // Search Box with Purple Border - Tap to open search
-        Button(action: onTapped) {
+        VStack(spacing: 0) {
+            // Search Bar
             HStack(spacing: 12) {
-                // Purple magnifying glass icon
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 18, weight: .medium))
                     .foregroundColor(.purple)
                     .padding(.leading, 16)
-                
-                // Placeholder text
-                Text("Search receipts, bills, documents...")
+
+                TextField("Search receipts, bills, documents...", text: $searchText)
                     .font(.system(size: 16))
-                    .foregroundColor(.gray)
-                
-                Spacer()
-                
-                Text("Go")
-                    .font(.system(size: 18, weight: .black))
+                    .foregroundColor(.primary)
+                    .tint(.purple)
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .onSubmit {
+                        onSearchSubmitted()
+                    }
+                    .onChange(of: searchText) { _, newValue in
+                        onSearchTextChanged(newValue)
+                    }
+
+                if !searchText.isEmpty {
+                    Button("Clear") {
+                        searchText = ""
+                        onSearchTextChanged("")
+                    }
+                    .font(.system(size: 14))
                     .foregroundColor(.purple)
                     .padding(.trailing, 16)
+                } else {
+                    Text("Go")
+                        .font(.system(size: 18, weight: .black))
+                        .foregroundColor(.purple)
+                        .padding(.trailing, 16)
+                }
             }
             .padding(.vertical, 16)
             .background(
@@ -216,10 +300,46 @@ struct SearchBox: View {
                             .stroke(Color.purple, lineWidth: 1)
                     )
             )
+            .padding(.top, 10)
+            .padding(.horizontal, 4)
+
+            // Search Suggestions
+            if showSuggestions && !suggestions.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(suggestions, id: \.self) { suggestion in
+                        Button(action: {
+                            onSuggestionSelected(suggestion)
+                        }) {
+                            HStack {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.gray)
+                                Text(suggestion)
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.primary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+
+                        if suggestion != suggestions.last {
+                            Divider()
+                                .padding(.leading, 20)
+                        }
+                    }
+                }
+                .background(Color(UIColor.systemBackground))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                )
+                .padding(.horizontal, 4)
+                .padding(.top, 4)
+            }
         }
-        .buttonStyle(PlainButtonStyle())
-        .padding(.top,10)
-        .padding(.horizontal, 4)
     }
 }
 
@@ -234,10 +354,7 @@ struct ScanSummarySection: View {
                     .font(.system(size: 20, weight: .regular))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.leading)
-                Spacer()
-                Image(systemName: "heart")
-                    .font(.largeTitle)
-                    .foregroundColor(.white)
+
             }
             
                 Group {
@@ -359,6 +476,123 @@ struct ClassificationStatusView: View {
         .padding(16)
         .background(Color.blue.opacity(0.8))
         .cornerRadius(12)
+    }
+}
+
+struct HomeSearchResultsView: View {
+    let searchText: String
+    let searchService: DocumentSearchService
+    let isSearching: Bool
+    let onResultTapped: (SearchResult) -> Void
+    let onDismiss: () -> Void
+    @Environment(\.presentationMode) var presentationMode
+    @State private var selectedResult: SearchResult?
+    @State private var showDocumentDetail = false
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                VStack(spacing: 0) {
+                    // Search Status and Statistics
+                    if isSearching {
+                        HomeSearchProgressView()
+                    } else if searchService.searchResults.isEmpty && !searchText.isEmpty {
+                        HomeNoResultsView(searchText: searchText)
+                    } else {
+                        // Search Results Header
+                        HStack {
+                            Text("Found \(searchService.searchResults.count) documents")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("Tap to view details")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+
+                        // Search Results Grid
+                        SearchResultsList(results: searchService.searchResults) { result in
+                            selectedResult = result
+                            showDocumentDetail = true
+                        }
+                    }
+
+                    Spacer()
+                }
+
+                // Navigation Links (hidden)
+                NavigationLink(
+                    destination: selectedResult != nil ? DocumentDetailView(searchResult: selectedResult!) : nil,
+                    isActive: $showDocumentDetail
+                ) {
+                    EmptyView()
+                }
+                .hidden()
+            }
+            .navigationTitle("Search: \(searchText)")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                leading: Button("Close") {
+                    onDismiss()
+                    presentationMode.wrappedValue.dismiss()
+                }
+            )
+        }
+    }
+}
+
+struct HomeSearchProgressView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: .purple))
+                .scaleEffect(1.2)
+
+            Text("Searching documents...")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.secondary)
+        }
+        .padding(.top, 40)
+    }
+}
+
+struct HomeNoResultsView: View {
+    let searchText: String
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 64))
+                .foregroundColor(.gray)
+
+            VStack(spacing: 8) {
+                Text("No documents found")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text("No documents contain text matching '\(searchText)'")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+
+            Text("Try searching for:")
+                .font(.headline)
+                .padding(.top, 20)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("• Company or store names")
+                Text("• Invoice or receipt numbers")
+                Text("• Dates or amounts")
+                Text("• Product names")
+            }
+            .font(.body)
+            .foregroundColor(.secondary)
+        }
+        .padding(.top, 60)
     }
 }
 

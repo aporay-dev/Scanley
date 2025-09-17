@@ -45,11 +45,6 @@ struct DocumentDetailView: View {
             }
             .navigationTitle("Document Details")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                leading: Button("Close") {
-                    presentationMode.wrappedValue.dismiss()
-                }
-            )
         }
         .onAppear {
             loadDocumentImage()
