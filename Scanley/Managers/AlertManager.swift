@@ -14,10 +14,10 @@ struct AlertManager {
     static let ocrMessages = OCRMessages()
     
     struct OCRMessages {
-        let scanStarted = "Starting OCR scan..."
-        let scanCompleted = "OCR scan completed successfully!"
-        let scanCancelled = "OCR scan cancelled by user"
-        let scanFailed = "OCR scan failed. Please try again."
+        let scanStarted = "Starting scan..."
+        let scanCompleted = "Scan completed successfully!"
+        let scanCancelled = "Scan cancelled by user"
+        let scanFailed = "Scan failed. Please try again."
         
         let photoLibraryAccessDenied = "Photo library access was denied. Please enable access in Settings."
         let noPhotosFound = "No photos found in your photo library."

@@ -42,7 +42,7 @@ class DocumentClassificationService: ObservableObject {
             if totalDocuments == 0 {
                 print("📄 No documents found to classify")
                 print("🔍 DEBUG: This usually means:")
-                print("   1. No OCR scanning has been performed yet")
+                print("   1. No scanning has been performed yet")
                 print("   2. Documents were not saved to SwiftData properly") 
                 print("   3. Database context issue")
                 print("💡 Try scanning documents first to populate the database")

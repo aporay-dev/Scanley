@@ -19,7 +19,7 @@ struct SimpleOCRResultsView: View {
                 .foregroundColor(.green)
             
             VStack(spacing: 8) {
-                Text("Simple OCR Complete!")
+                Text("Simple Scan Complete!")
                     .font(.title2)
                     .fontWeight(.semibold)
                 

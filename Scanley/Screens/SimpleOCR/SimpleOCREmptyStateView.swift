@@ -19,11 +19,11 @@ struct SimpleOCREmptyStateView: View {
                 .foregroundColor(.orange)
             
             VStack(spacing: 8) {
-                Text("Simple OCR Test")
+                Text("Simple Scan Test")
                     .font(.title2)
                     .fontWeight(.semibold)
                 
-                Text("This will run OCR directly on all photos without document classification for faster processing")
+                Text("This scan will run directly on all photos without document classification for faster processing")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -73,7 +73,7 @@ struct SimpleOCREmptyStateView: View {
             }) {
                 HStack(spacing: 8) {
                     Image(systemName: "play.fill")
-                    Text(viewModel.isTestMode ? "Start Test OCR" : "Start Simple OCR")
+                    Text(viewModel.isTestMode ? "Start Test Scan" : "Start Simple Scan")
                 }
                 .font(.headline)
                 .foregroundColor(.white)

@@ -11,16 +11,26 @@ import SwiftData
 @main
 struct ScanleyApp: App {
     @State private var hasPerformedAppLaunchCleanup = false
-    
+    @State private var isPerformingCleanup = false
+
     var body: some Scene {
         WindowGroup {
-            Home()
-                .task {
-                    if !hasPerformedAppLaunchCleanup {
-                        await performAppLaunchCleanup()
-                        hasPerformedAppLaunchCleanup = true
+            if isPerformingCleanup || !hasPerformedAppLaunchCleanup {
+                StartupScreen()
+                    .task {
+                        if !hasPerformedAppLaunchCleanup {
+                            isPerformingCleanup = true
+                            await performAppLaunchCleanup()
+                            hasPerformedAppLaunchCleanup = true
+
+                            // Add a small delay to ensure smooth transition
+                            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                            isPerformingCleanup = false
+                        }
                     }
-                }
+            } else {
+                Home()
+            }
         }
         .modelContainer(for: DocumentText.self)
     }

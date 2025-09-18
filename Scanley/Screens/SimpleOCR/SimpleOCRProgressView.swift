@@ -20,7 +20,7 @@ struct SimpleOCRProgressView: View {
                 .padding(.horizontal, 40)
             
             VStack(spacing: 12) {
-                Text("Running Simple OCR")
+                Text("Running Simple Scan")
                     .font(.title2)
                     .fontWeight(.semibold)
                 

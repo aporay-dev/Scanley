@@ -79,7 +79,7 @@ class SimpleOCRScanner: ObservableObject {
                 isScanning = true
                 lastError = nil
                 scanProgress = 0.0
-                scanStatusMessage = "Starting simplified OCR scan..."
+                scanStatusMessage = "Starting scan..."
                 totalPhotosScanned = 0
                 documentsWithTextFound = 0
                 
@@ -87,15 +87,15 @@ class SimpleOCRScanner: ObservableObject {
                 
                 if !Task.isCancelled {
                     isScanning = false
-                    scanStatusMessage = "Simple OCR scan complete: \(documentsWithTextFound) photos with text found from \(totalPhotosScanned) photos"
-                    print("🎉 Simple OCR scan completed successfully!")
+                    scanStatusMessage = "Scan complete: \(documentsWithTextFound) photos with text found from \(totalPhotosScanned) photos"
+                    print("🎉 Scan completed successfully!")
                 }
             } catch {
                 if !Task.isCancelled {
                     isScanning = false
                     lastError = error.localizedDescription
                     scanStatusMessage = "Scan failed: \(error.localizedDescription)"
-                    print("❌ Simple OCR scan failed: \(error.localizedDescription)")
+                    print("❌ Scan failed: \(error.localizedDescription)")
                 }
             }
         }
@@ -107,8 +107,8 @@ class SimpleOCRScanner: ObservableObject {
         scanTask?.cancel()
         scanTask = nil
         isScanning = false
-        scanStatusMessage = "Simple OCR scan cancelled"
-        print("🛑 Simple OCR scan cancelled by user")
+        scanStatusMessage = "Scan cancelled"
+        print("🛑 Scan cancelled by user")
     }
     
     private func performSimpleOCRScan() async throws {
@@ -124,9 +124,9 @@ class SimpleOCRScanner: ObservableObject {
         // Test mode: limit to latest 100 photos for faster testing
         let totalCount = isTestMode ? min(allPhotos.count, 100) : allPhotos.count
         let modeText = isTestMode ? " (Test Mode - Latest 100)" : ""
-        scanStatusMessage = "Running OCR on \(totalCount) photos...\(modeText)"
+        scanStatusMessage = "Running scan on \(totalCount) photos...\(modeText)"
         
-        print("🚀 Starting Simple OCR scan on \(totalCount) photos\(modeText)")
+        print("🚀 Starting scan on \(totalCount) photos\(modeText)")
         
         let imageManager = PHImageManager.default()
         let requestOptions = PHImageRequestOptions()
@@ -158,7 +158,7 @@ class SimpleOCRScanner: ObservableObject {
             await MainActor.run {
                 self.scanProgress = Double(batchEnd) / Double(totalCount)
                 let progressPercent = Int(self.scanProgress * 100)
-                self.scanStatusMessage = "OCR Progress: \(progressPercent)% (\(self.documentsWithTextFound) with text found)"
+                self.scanStatusMessage = "Scan Progress: \(progressPercent)% (\(self.documentsWithTextFound) with text found)"
             }
             
             // Small delay to prevent overwhelming the system
@@ -169,7 +169,7 @@ class SimpleOCRScanner: ObservableObject {
     private func processPhotoAtIndex(_ index: Int, asset: PHAsset, imageManager: PHImageManager, requestOptions: PHImageRequestOptions) async {
         // Check if we already have OCR data for this photo
         if await ocrDataExists(for: asset.localIdentifier) {
-            print("⏭️  Skipping photo \(index + 1) - OCR data already exists")
+            print("⏭️  Skipping photo \(index + 1) - Scan data already exists")
             return
         }
         
@@ -196,7 +196,7 @@ class SimpleOCRScanner: ObservableObject {
             self.totalPhotosScanned += 1
         }
         
-        print("🔍 Photo \(index + 1): OCR found \(ocrResult.text.count) characters (confidence: \(ocrResult.confidence))")
+        print("🔍 Photo \(index + 1): scan data found \(ocrResult.text.count) characters (confidence: \(ocrResult.confidence))")
         
         // Filter by confidence and text length - keep photos with meaningful text
         if ocrResult.confidence > 0.1 && ocrResult.text.count > 10 {
@@ -228,7 +228,7 @@ class SimpleOCRScanner: ObservableObject {
             let existingTexts = try context.fetch(descriptor)
             return !existingTexts.isEmpty
         } catch {
-            print("❌ Error checking existing OCR data: \(error)")
+            print("❌ Error checking existing scan data: \(error)")
             return false
         }
     }
@@ -282,7 +282,7 @@ class SimpleOCRScanner: ObservableObject {
     
     private func storeSimpleOCRResult(documentID: String, extractedText: String, confidence: Float, dateCreated: Date) async {
         guard let context = modelContext else {
-            print("❌ No model context available for storing OCR result")
+            print("❌ No model context available for storing scan result")
             return
         }
         
@@ -300,7 +300,7 @@ class SimpleOCRScanner: ObservableObject {
         do {
             try context.save()
         } catch {
-            print("❌ Error saving simple OCR result: \(error)")
+            print("❌ Error saving simple scan result: \(error)")
         }
     }
     

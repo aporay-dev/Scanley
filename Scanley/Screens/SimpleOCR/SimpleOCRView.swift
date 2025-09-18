@@ -24,8 +24,7 @@ struct SimpleOCRView: View {
                     SimpleOCREmptyStateView(viewModel: viewModel)
                 }
             }
-            .navigationTitle("Test OCR Scanner")
-            .navigationBarTitleDisplayMode(.inline)
+//            .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(leading: Button(AlertManager.buttons.close) {
                 presentationMode.wrappedValue.dismiss()
             })

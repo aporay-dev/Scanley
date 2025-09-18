@@ -43,8 +43,6 @@ struct DocumentDetailView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Document Details")
-            .navigationBarTitleDisplayMode(.inline)
         }
         .onAppear {
             loadDocumentImage()
