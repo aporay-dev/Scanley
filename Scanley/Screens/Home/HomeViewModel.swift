@@ -10,9 +10,7 @@ import SwiftData
 
 @MainActor
 class HomeViewModel: ObservableObject {
-    @Published var showSearchView = false
     @Published var showSimpleOCR = false
-    @Published var selectedCategory: String? = nil
     
     // Photo category data
     @Published var photoCategories: [PhotoCategory] = []
@@ -58,16 +56,6 @@ class HomeViewModel: ObservableObject {
     }
     
     
-    func openSearchView() {
-        selectedCategory = nil  // Clear any previous category filter
-        showSearchView = true
-    }
-    
-    func openCategorySearch(for category: PhotoCategory) {
-        selectedCategory = category.title
-        showSearchView = true
-        print("🔍 Opening search for category: \(category.title)")
-    }
     
     func openSimpleOCR() {
         showSimpleOCR = true

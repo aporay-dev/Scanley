@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct SearchResult: Identifiable {
+struct SearchResult: Identifiable, Hashable {
     let id = UUID()
     let documentID: String
     let documentType: String
@@ -25,5 +25,14 @@ struct SearchResult: Identifiable {
     // Helper to get DocumentType enum from string
     var documentTypeEnum: DocumentType {
         return DocumentType(rawValue: documentType) ?? .receipt
+    }
+
+    // MARK: - Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    static func == (lhs: SearchResult, rhs: SearchResult) -> Bool {
+        return lhs.id == rhs.id
     }
 }

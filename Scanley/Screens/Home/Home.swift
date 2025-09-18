@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import Photos
 
 struct Home: View {
     @StateObject private var viewModel = HomeViewModel()
@@ -109,10 +110,7 @@ struct Home: View {
 
                     // Photo Categories Grid
                     PhotoCategoriesGrid(
-                        categories: viewModel.photoCategories,
-                        onCategoryTapped: { category in
-                            viewModel.openCategorySearch(for: category)
-                        }
+                        categories: viewModel.photoCategories
                     )
                     
                     Spacer()
@@ -222,9 +220,6 @@ struct Home: View {
             
             }
         }
-        .sheet(isPresented: $viewModel.showSearchView) {
-            SearchView(modelContext: modelContext, filterByCategory: viewModel.selectedCategory)
-        }
         .sheet(isPresented: $viewModel.showSimpleOCR) {
             SimpleOCRView()
         }
@@ -234,7 +229,9 @@ struct Home: View {
                     searchText: searchText,
                     searchService: searchService,
                     isSearching: isSearching,
-                    onResultTapped: { _ in }, // Not used anymore
+                    onResultTapped: { result in
+                        // Navigation will be handled within HomeSearchResultsView
+                    },
                     onDismiss: {
                         showSearchResults = false
                     }
@@ -383,7 +380,6 @@ struct ScanSummarySection: View {
 
 struct PhotoCategoriesGrid: View {
     let categories: [PhotoCategory]
-    let onCategoryTapped: (PhotoCategory) -> Void
     
     var body: some View {
         LazyVGrid(columns: [
@@ -391,12 +387,7 @@ struct PhotoCategoriesGrid: View {
             GridItem(.flexible(), spacing: 10)
         ], spacing: 10) {
             ForEach(categories, id: \.title) { category in
-                PhotoCategoryCard(
-                    category: category,
-                    onTapped: {
-                        onCategoryTapped(category)
-                    }
-                )
+                PhotoCategoryCard(category: category)
             }
         }
         .padding(.top,10)
@@ -405,10 +396,8 @@ struct PhotoCategoriesGrid: View {
 
 struct PhotoCategoryCard: View {
     let category: PhotoCategory
-    let onTapped: () -> Void
-    
+
     var body: some View {
-        Button(action: onTapped) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text(String(category.numPhotos))
@@ -432,8 +421,6 @@ struct PhotoCategoryCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(category.color)
             .cornerRadius(12)
-        }
-        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -487,10 +474,10 @@ struct HomeSearchResultsView: View {
     let onDismiss: () -> Void
     @Environment(\.presentationMode) var presentationMode
     @State private var selectedResult: SearchResult?
-    @State private var showDocumentDetail = false
+    @State private var navigationPath = NavigationPath()
 
     var body: some View {
-        NavigationView {
+        NavigationStack(path: $navigationPath) {
             ZStack {
                 VStack(spacing: 0) {
                     // Search Status and Statistics
@@ -515,21 +502,13 @@ struct HomeSearchResultsView: View {
                         // Search Results Grid
                         SearchResultsList(results: searchService.searchResults) { result in
                             selectedResult = result
-                            showDocumentDetail = true
+                            navigationPath.append(result)
                         }
                     }
 
                     Spacer()
                 }
 
-                // Navigation Links (hidden)
-                NavigationLink(
-                    destination: selectedResult != nil ? DocumentDetailView(searchResult: selectedResult!) : nil,
-                    isActive: $showDocumentDetail
-                ) {
-                    EmptyView()
-                }
-                .hidden()
             }
             .navigationTitle("Search: \(searchText)")
             .navigationBarTitleDisplayMode(.inline)
@@ -539,6 +518,9 @@ struct HomeSearchResultsView: View {
                     presentationMode.wrappedValue.dismiss()
                 }
             )
+            .navigationDestination(for: SearchResult.self) { result in
+                DocumentDetailView(searchResult: result)
+            }
         }
     }
 }
@@ -593,6 +575,118 @@ struct HomeNoResultsView: View {
             .foregroundColor(.secondary)
         }
         .padding(.top, 60)
+    }
+}
+
+struct SearchResultsList: View {
+    let results: [SearchResult]
+    let onResultTapped: (SearchResult) -> Void
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8)
+    ]
+
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(results) { result in
+                    SearchResultThumbnail(result: result) {
+                        onResultTapped(result)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+        }
+    }
+}
+
+struct SearchResultThumbnail: View {
+    let result: SearchResult
+    let onTapped: () -> Void
+    @State private var thumbnailImage: UIImage?
+    @State private var isLoadingImage = true
+
+    var body: some View {
+        Button(action: onTapped) {
+            VStack(spacing: 8) {
+                // Document Thumbnail
+                ZStack {
+                    if isLoadingImage {
+                        // Loading placeholder
+                        Rectangle()
+                            .fill(Color(UIColor.systemGray5))
+                            .frame(height: 120)
+                            .overlay(
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .gray))
+                                    .scaleEffect(0.8)
+                            )
+                    } else if let image = thumbnailImage {
+                        // Document image
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(height: 120)
+                            .clipped()
+                    } else {
+                        // Error/fallback state
+                        Rectangle()
+                            .fill(result.documentTypeEnum.color.opacity(0.2))
+                            .frame(height: 120)
+                            .overlay(
+                                VStack(spacing: 4) {
+                                    Image(systemName: result.documentTypeEnum.icon)
+                                        .font(.system(size: 24))
+                                        .foregroundColor(result.documentTypeEnum.color)
+                                    Text("No Image")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            )
+                    }
+                }
+                .cornerRadius(8)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .onAppear {
+            loadThumbnailImage()
+        }
+    }
+
+    private func loadThumbnailImage() {
+        let imageManager = PHImageManager.default()
+        let requestOptions = PHImageRequestOptions()
+        requestOptions.isSynchronous = false
+        requestOptions.deliveryMode = .opportunistic
+        requestOptions.isNetworkAccessAllowed = false
+        requestOptions.resizeMode = .exact
+
+        // Get the PHAsset using the document ID
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.predicate = NSPredicate(format: "localIdentifier == %@", result.documentID)
+
+        let assets = PHAsset.fetchAssets(with: fetchOptions)
+
+        guard let asset = assets.firstObject else {
+            isLoadingImage = false
+            return
+        }
+
+        imageManager.requestImage(
+            for: asset,
+            targetSize: CGSize(width: 200, height: 200),
+            contentMode: .aspectFill,
+            options: requestOptions
+        ) { image, info in
+            DispatchQueue.main.async {
+                self.thumbnailImage = image
+                self.isLoadingImage = false
+            }
+        }
     }
 }
 
