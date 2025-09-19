@@ -23,7 +23,7 @@ struct DocumentDetailView: View {
                 if isLoading {
                     DocumentImagePlaceholder()
                 } else if let image = documentImage {
-                    DocumentImageView(image: image)
+                    DocumentImageView(image: image, documentID: searchResult.documentID)
                 } else {
                     DocumentImageError(error: loadError ?? "Failed to load image")
                 }
@@ -139,6 +139,7 @@ struct DocumentImagePlaceholder: View {
 
 struct DocumentImageView: View {
     let image: UIImage
+    let documentID: String
     @State private var showFullScreen = false
     
     var body: some View {
@@ -167,7 +168,7 @@ struct DocumentImageView: View {
                 .foregroundColor(.secondary)
         }
         .fullScreenCover(isPresented: $showFullScreen) {
-            FullScreenImageView(image: image, isPresented: $showFullScreen)
+            FullScreenImageView(image: image, documentID: documentID, isPresented: $showFullScreen)
         }
     }
 }
@@ -322,29 +323,70 @@ struct MatchingSnippetsSection: View {
 }
 
 struct FullScreenImageView: View {
-    let image: UIImage
+    let initialImage: UIImage
+    let documentID: String
     @Binding var isPresented: Bool
+    @State private var displayImage: UIImage
+    @State private var isLoadingHighQuality = false
+    @State private var hasLoadedHighQuality = false
     @State private var scale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastScale: CGFloat = 1.0
-    
+
+    init(image: UIImage, documentID: String, isPresented: Binding<Bool>) {
+        self.initialImage = image
+        self.documentID = documentID
+        self._isPresented = isPresented
+        self._displayImage = State(initialValue: image)
+    }
+
     var body: some View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
-            
+
             VStack {
                 HStack {
+                    // Quality indicator
+                    if isLoadingHighQuality {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(0.8)
+                            Text("Loading HD...")
+                                .font(.caption)
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(16)
+                    } else if hasLoadedHighQuality {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.caption)
+                            Text("HD")
+                                .font(.caption)
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(16)
+                    }
+
                     Spacer()
+
                     Button("Done") {
                         isPresented = false
                     }
                     .foregroundColor(.white)
                     .padding()
                 }
-                
+
                 Spacer()
-                
-                Image(uiImage: image)
+
+                Image(uiImage: displayImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .scaleEffect(scale)
@@ -378,8 +420,100 @@ struct FullScreenImageView: View {
                                 }
                         )
                     )
-                
+
                 Spacer()
+            }
+        }
+        .onAppear {
+            loadHighQualityImage()
+        }
+    }
+
+    private func loadHighQualityImage() {
+        // Don't reload if we already have high quality
+        guard !hasLoadedHighQuality else { return }
+
+        // Check if current image is already high quality
+        let screenScale = UIScreen.main.scale
+        let screenWidth = UIScreen.main.bounds.width * screenScale
+
+        if displayImage.size.width >= screenWidth {
+            hasLoadedHighQuality = true
+            return
+        }
+
+        isLoadingHighQuality = true
+
+        Task {
+            let highQualityImage = await loadOriginalQualityImage()
+
+            await MainActor.run {
+                isLoadingHighQuality = false
+
+                if let highQualityImage = highQualityImage {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        displayImage = highQualityImage
+                    }
+                    hasLoadedHighQuality = true
+                    print("✅ Loaded high-quality image: \(highQualityImage.size)")
+                } else {
+                    print("❌ Failed to load high-quality image")
+                }
+            }
+        }
+    }
+
+    private func loadOriginalQualityImage() async -> UIImage? {
+        return await withCheckedContinuation { continuation in
+            var hasResumed = false
+
+            // Get the PHAsset using the document ID
+            let fetchOptions = PHFetchOptions()
+            fetchOptions.predicate = NSPredicate(format: "localIdentifier == %@", documentID)
+
+            DispatchQueue.global(qos: .userInitiated).async {
+                let assets = PHAsset.fetchAssets(with: fetchOptions)
+
+                guard let asset = assets.firstObject else {
+                    DispatchQueue.main.async {
+                        guard !hasResumed else { return }
+                        hasResumed = true
+                        continuation.resume(returning: nil)
+                    }
+                    return
+                }
+
+                let imageManager = PHImageManager.default()
+                let requestOptions = PHImageRequestOptions()
+                requestOptions.isSynchronous = false
+                requestOptions.deliveryMode = .highQualityFormat
+                requestOptions.isNetworkAccessAllowed = true  // Allow iCloud downloads for full-screen
+                requestOptions.resizeMode = .none  // No resizing for maximum quality
+
+                let requestID = imageManager.requestImage(
+                    for: asset,
+                    targetSize: PHImageManagerMaximumSize,  // Original resolution
+                    contentMode: .default,
+                    options: requestOptions
+                ) { image, info in
+                    DispatchQueue.main.async {
+                        guard !hasResumed else { return }
+
+                        let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+                        let requestCancelled = (info?[PHImageCancelledKey] as? Bool) ?? false
+                        let requestError = info?[PHImageErrorKey] as? Error
+
+                        // Resume for final result, error, or cancellation
+                        let shouldResume = !isDegraded || requestCancelled || requestError != nil
+
+                        if shouldResume {
+                            hasResumed = true
+                            continuation.resume(returning: image)
+                        }
+                    }
+                }
+
+                print("📸 Requesting original quality image for document: \(documentID)")
             }
         }
     }
