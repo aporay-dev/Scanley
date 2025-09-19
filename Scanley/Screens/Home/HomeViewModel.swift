@@ -74,15 +74,33 @@ class HomeViewModel: ObservableObject {
             }
 
             print("🔍 DEBUG: Found category counts from SwiftData:")
-            for (category, count) in categoryCounts {
+            print("🔍 DEBUG: Total documents: \(allDocuments.count)")
+            for (category, count) in categoryCounts.sorted(by: { $0.1 > $1.1 }) {
                 print("   \(category): \(count) documents")
+            }
+
+            // Debug: Check for unexpected document types
+            let knownTypes = ["Tax", "Receipts", "Invoices & Bills", "Bank", "Medical", "Legal", "Govt", "Insurance", "Text Document"]
+            let unknownTypes = categoryCounts.keys.filter { !knownTypes.contains($0) }
+            if !unknownTypes.isEmpty {
+                print("⚠️ DEBUG: Found unexpected document types:")
+                for unknownType in unknownTypes {
+                    print("   Unknown: '\(unknownType)' (\(categoryCounts[unknownType] ?? 0) documents)")
+                }
+            }
+
+            // Handle "Text Document" type (from simple OCR scan before classification)
+            if let textDocumentCount = categoryCounts["Text Document"] {
+                print("📄 DEBUG: Found \(textDocumentCount) unclassified 'Text Document' entries")
+                print("💡 These documents need to be classified to appear in categories")
+                // Note: We don't show these in any category until they're properly classified
             }
 
             // Update photoCategories with actual counts
             for index in photoCategories.indices {
                 let categoryTitle = photoCategories[index].title
 
-                // Map category titles to document type strings
+                // Map category titles to document type strings (must match DocumentCategory enum values)
                 let documentTypeString: String
                 switch categoryTitle {
                 case "Tax":
@@ -90,7 +108,7 @@ class HomeViewModel: ObservableObject {
                 case "Receipts":
                     documentTypeString = "Receipts"
                 case "Invoices & Bills":
-                    documentTypeString = "Invoice/Bills"
+                    documentTypeString = "Invoices & Bills"  // Fixed: matches enum exactly
                 case "Bank":
                     documentTypeString = "Bank"
                 case "Medical":
@@ -98,7 +116,7 @@ class HomeViewModel: ObservableObject {
                 case "Legal":
                     documentTypeString = "Legal"
                 case "Govt":
-                    documentTypeString = "Government"
+                    documentTypeString = "Govt"  // Fixed: matches enum exactly
                 case "Insurance":
                     documentTypeString = "Insurance"
                 default:

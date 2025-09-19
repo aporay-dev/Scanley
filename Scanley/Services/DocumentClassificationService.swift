@@ -116,27 +116,34 @@ class DocumentClassificationService: ObservableObject {
     
     private func classifyDocument(_ document: DocumentText) async -> DocumentClassificationResult? {
         let startTime = CFAbsoluteTimeGetCurrent()
-        
+
         // Use Apple's Natural Language framework for on-device processing
-        let classification = await performNLClassification(text: document.extractedText)
-        
+        let classificationResult = await performNLClassificationWithConfidence(text: document.extractedText)
+
         let endTime = CFAbsoluteTimeGetCurrent()
         let processingTime = endTime - startTime
-        
+
+        // Only classify documents that meet confidence threshold
+        guard classificationResult.confidence >= 0.15 else {
+            print("⏭️  Document \(document.documentID.prefix(8)): Skipping classification - low confidence (\(String(format: "%.2f", classificationResult.confidence)))")
+            print("💡 Keeping as 'Text Document' to avoid classification bias")
+            return nil // Don't create result for low-confidence classifications
+        }
+
         let result = DocumentClassificationResult(
             documentID: document.documentID,
             originalText: document.extractedText,
-            classification: classification,
-            confidence: calculateConfidence(for: classification, text: document.extractedText),
+            classification: classificationResult.category,
+            confidence: classificationResult.confidence,
             processingTime: processingTime
         )
-        
-        print("🏷️  Document \(document.documentID.prefix(8)): \(classification.rawValue) (confidence: \(String(format: "%.2f", result.confidence)))")
-        
+
+        print("🏷️  Document \(document.documentID.prefix(8)): \(classificationResult.category.rawValue) (confidence: \(String(format: "%.2f", result.confidence)))")
+
         return result
     }
     
-    private func performNLClassification(text: String) async -> DocumentCategory {
+    private func performNLClassificationWithConfidence(text: String) async -> (category: DocumentCategory, confidence: Float) {
         // Use keyword-based classification with Natural Language processing
         let lowercasedText = text.lowercased()
         let words = extractKeywords(from: lowercasedText)
@@ -144,8 +151,8 @@ class DocumentClassificationService: ObservableObject {
         // Tax Related Keywords
         let taxKeywords = ["tax", "irs", "deduction", "form", "w-2", "w2", "1099", "tax return", "refund", "taxable", "tax year", "schedule", "tax code", "withholding", "tax liability", "tax credit", "filing", "itemized", "standard deduction", "earned income"]
         
-        // Receipt Keywords  
-        let receiptKeywords = ["receipt", "purchase", "bought", "paid", "total", "subtotal", "cash", "card", "visa", "mastercard", "amex", "store", "shop", "retail", "checkout", "transaction", "sale", "qty", "quantity", "item", "product", "price", "amount"]
+        // Receipt Keywords (more specific to avoid false positives)
+        let receiptKeywords = ["receipt", "purchase", "bought", "store", "shop", "retail", "checkout", "qty", "quantity", "item", "product", "cashier", "register", "store number", "employee", "thank you for shopping"]
         
         // Invoice & Bills Keywords
         let invoiceBillKeywords = ["invoice", "bill", "billing", "due date", "amount due", "payment terms", "net 30", "remit", "remittance", "services rendered", "professional services", "consultation", "hourly rate", "project", "milestone", "contractor", "vendor", "supplier"]
@@ -206,10 +213,11 @@ class DocumentClassificationService: ObservableObject {
         // Threshold for classification (minimum confidence required)
         let minConfidenceThreshold: Float = 0.15
         
-        if let bestMatch = bestMatch, bestMatch.1 >= minConfidenceThreshold {
-            return bestMatch.0
+        if let bestMatch = bestMatch {
+            return (category: bestMatch.0, confidence: bestMatch.1)
         } else {
-            return .receipts
+            // If no keywords matched at all, return lowest confidence
+            return (category: .invoiceBills, confidence: 0.0)
         }
     }
     
@@ -376,45 +384,6 @@ class DocumentClassificationService: ObservableObject {
         return normalizedScore
     }
     
-    private func calculateConfidence(for category: DocumentCategory, text: String) -> Float {
-        // Simple confidence calculation based on text analysis
-        let words = extractKeywords(from: text.lowercased())
-        
-        switch category {
-        case .tax:
-            let taxKeywords = ["tax", "irs", "deduction", "form", "w-2", "1099", "refund"]
-            return calculateCategoryScore(words: words, categoryKeywords: taxKeywords) * 5.0
-            
-        case .receipts:
-            let receiptKeywords = ["receipt", "purchase", "total", "paid", "store", "transaction"]
-            return calculateCategoryScore(words: words, categoryKeywords: receiptKeywords) * 5.0
-            
-        case .invoiceBills:
-            let invoiceBillKeywords = ["invoice", "bill", "due date", "amount due", "services rendered"]
-            return calculateCategoryScore(words: words, categoryKeywords: invoiceBillKeywords) * 5.0
-            
-        case .bank:
-            let bankKeywords = ["bmo", "bank", "statement", "balance", "deposit", "account", "debit", "credit card", "interac", "mastercard", "visa"]
-            return calculateCategoryScore(words: words, categoryKeywords: bankKeywords) * 5.0
-            
-        case .medical:
-            let medicalKeywords = ["doctor", "hospital", "medical", "prescription", "patient"]
-            return calculateCategoryScore(words: words, categoryKeywords: medicalKeywords) * 5.0
-            
-        case .legal:
-            let legalKeywords = ["legal", "attorney", "court", "contract", "lawsuit"]
-            return calculateCategoryScore(words: words, categoryKeywords: legalKeywords) * 5.0
-            
-        case .govt:
-            let govtKeywords = ["government", "license", "permit", "federal", "state"]
-            return calculateCategoryScore(words: words, categoryKeywords: govtKeywords) * 5.0
-            
-        case .insurance:
-            let insuranceKeywords = ["insurance", "policy", "premium", "coverage", "claim", "deductible"]
-            return calculateCategoryScore(words: words, categoryKeywords: insuranceKeywords) * 5.0
-            
-        }
-    }
     
     private func updateDocumentType(documentID: String, newType: String, context: ModelContext) async {
         do {
