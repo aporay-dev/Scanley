@@ -33,11 +33,14 @@ struct StartupScreen: View {
                 
                 
                 VStack(){
-                    Text("AI Powered Search for your photos.\n\t\tTame the chaos. Safely.")
+//                    Text("AI Powered Search for your photos.\n\tTame the chaos. Safely.")
+                    Text("AI Search for your photos.\n\tAll on your device.\nNothing leaves your phone.")
                         .font(.system(size: 20, weight: .light))
                         .foregroundColor(.primary)
                 }
                 .padding(.top,80)
+                .padding(.leading,30)
+                .padding(.trailing,30)
 
 
                 Spacer()

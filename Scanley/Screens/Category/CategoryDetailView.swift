@@ -15,13 +15,12 @@ struct CategoryDetailView: View {
     @State private var documents: [SearchResult] = []
     @State private var isLoading = true
     @State private var loadError: String?
-    @State private var selectedDocument: SearchResult?
-    @State private var showDocumentDetail = false
+    @State private var navigationPath = NavigationPath()
 
     private let swiftDataManager = SwiftDataManager.shared
 
     var body: some View {
-        NavigationView {
+        NavigationStack(path: $navigationPath) {
             VStack(spacing: 0) {
                 // Header with category info
                 CategoryHeader(category: category)
@@ -37,8 +36,7 @@ struct CategoryDetailView: View {
                     EmptyStateView(category: category)
                 } else {
                     DocumentGrid(documents: documents) { document in
-                        selectedDocument = document
-                        showDocumentDetail = true
+                        navigationPath.append(document)
                     }
                 }
             }
@@ -51,10 +49,8 @@ struct CategoryDetailView: View {
                     }
                 }
             }
-        }
-        .sheet(isPresented: $showDocumentDetail) {
-            if let document = selectedDocument {
-                DocumentDetailView(searchResult: document)
+            .navigationDestination(for: SearchResult.self) { result in
+                DocumentDetailView(searchResult: result)
             }
         }
         .onAppear {

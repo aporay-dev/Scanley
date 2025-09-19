@@ -17,34 +17,34 @@ struct DocumentDetailView: View {
     @StateObject private var imageManager = ThumbnailImageManager.shared
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Document Image Section
-                    if isLoading {
-                        DocumentImagePlaceholder()
-                    } else if let image = documentImage {
-                        DocumentImageView(image: image)
-                    } else {
-                        DocumentImageError(error: loadError ?? "Failed to load image")
-                    }
-                    
-                    // Document Info Section
-                    DocumentInfoSection(result: searchResult)
-                    
-                    // Extracted Text Section
-                    ExtractedTextSection(result: searchResult)
-                    
-                    // Matching Snippets Section
-                    if !searchResult.matchingSnippets.isEmpty {
-                        MatchingSnippetsSection(result: searchResult)
-                    }
-                    
-                    Spacer()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Document Image Section
+                if isLoading {
+                    DocumentImagePlaceholder()
+                } else if let image = documentImage {
+                    DocumentImageView(image: image)
+                } else {
+                    DocumentImageError(error: loadError ?? "Failed to load image")
                 }
-                .padding()
+
+                // Document Info Section
+                DocumentInfoSection(result: searchResult)
+
+                // Extracted Text Section
+                ExtractedTextSection(result: searchResult)
+
+                // Matching Snippets Section
+                if !searchResult.matchingSnippets.isEmpty {
+                    MatchingSnippetsSection(result: searchResult)
+                }
+
+                Spacer()
             }
+            .padding()
         }
+        .navigationTitle("Document Detail")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             loadDocumentImage()
         }
