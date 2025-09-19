@@ -14,6 +14,7 @@ struct DocumentDetailView: View {
     @State private var isLoading = true
     @State private var loadError: String?
     @Environment(\.presentationMode) var presentationMode
+    @StateObject private var imageManager = ThumbnailImageManager.shared
     
     var body: some View {
         NavigationView {
@@ -50,29 +51,55 @@ struct DocumentDetailView: View {
     }
     
     private func loadDocumentImage() {
-        let imageManager = PHImageManager.default()
+        // Check cache first for immediate display
+        if let cachedImage = imageManager.getCachedThumbnail(documentID: searchResult.documentID) {
+            documentImage = cachedImage
+            isLoading = false
+            return
+        }
+
+        print("📸 Loading image for document: \(searchResult.documentID)")
+
+        // Load using optimized thumbnail manager first, then high-quality if needed
+        Task {
+            // First try to get cached or fast thumbnail
+            let image = await imageManager.loadThumbnail(documentID: searchResult.documentID)
+
+            await MainActor.run {
+                if let image = image {
+                    self.documentImage = image
+                    self.isLoading = false
+                    print("✅ Successfully loaded document image from cache/optimized loading")
+                } else {
+                    // Fallback to original high-quality loading
+                    self.loadHighQualityImage()
+                }
+            }
+        }
+    }
+
+    private func loadHighQualityImage() {
+        let phImageManager = PHImageManager.default()
         let requestOptions = PHImageRequestOptions()
         requestOptions.isSynchronous = false
         requestOptions.deliveryMode = .highQualityFormat
         requestOptions.isNetworkAccessAllowed = true
         requestOptions.resizeMode = .exact
-        
+
         // Get the PHAsset using the document ID
         let fetchOptions = PHFetchOptions()
         fetchOptions.predicate = NSPredicate(format: "localIdentifier == %@", searchResult.documentID)
-        
+
         let assets = PHAsset.fetchAssets(with: fetchOptions)
-        
+
         guard let asset = assets.firstObject else {
             isLoading = false
             loadError = "Document not found in photo library"
             print("❌ Could not find asset with ID: \(searchResult.documentID)")
             return
         }
-        
-        print("📸 Loading image for document: \(searchResult.documentID)")
-        
-        imageManager.requestImage(
+
+        phImageManager.requestImage(
             for: asset,
             targetSize: CGSize(width: 1024, height: 1024),
             contentMode: .aspectFit,
@@ -81,7 +108,7 @@ struct DocumentDetailView: View {
             DispatchQueue.main.async {
                 if let image = image {
                     self.documentImage = image
-                    print("✅ Successfully loaded document image")
+                    print("✅ Successfully loaded high-quality document image")
                 } else {
                     self.loadError = "Failed to load image from photo library"
                     print("❌ Failed to load image for document: \(searchResult.documentID)")

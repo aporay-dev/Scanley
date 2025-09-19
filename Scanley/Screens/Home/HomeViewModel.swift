@@ -11,9 +11,13 @@ import SwiftData
 @MainActor
 class HomeViewModel: ObservableObject {
     @Published var showSimpleOCR = false
-    
+
     // Photo category data
     @Published var photoCategories: [PhotoCategory] = []
+
+    // Category detail navigation
+    @Published var selectedCategory: PhotoCategory?
+    @Published var showCategoryDetail = false
     
     // Scan summary data
     @Published var lastScanDate: Date?
@@ -59,6 +63,11 @@ class HomeViewModel: ObservableObject {
     
     func openSimpleOCR() {
         showSimpleOCR = true
+    }
+
+    func openCategoryDetail(for category: PhotoCategory) {
+        selectedCategory = category
+        showCategoryDetail = true
     }
     
     // MARK: - Testing Methods (Temporary)

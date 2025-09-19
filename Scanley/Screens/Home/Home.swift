@@ -110,7 +110,10 @@ struct Home: View {
 
                     // Photo Categories Grid
                     PhotoCategoriesGrid(
-                        categories: viewModel.photoCategories
+                        categories: viewModel.photoCategories,
+                        onCategoryTapped: { category in
+                            viewModel.openCategoryDetail(for: category)
+                        }
                     )
                     
                     Spacer()
@@ -222,6 +225,11 @@ struct Home: View {
         }
         .sheet(isPresented: $viewModel.showSimpleOCR) {
             SimpleOCRView()
+        }
+        .sheet(isPresented: $viewModel.showCategoryDetail) {
+            if let category = viewModel.selectedCategory {
+                CategoryDetailView(category: category)
+            }
         }
         .sheet(isPresented: $showSearchResults) {
             if let searchService = searchService {
@@ -380,14 +388,17 @@ struct ScanSummarySection: View {
 
 struct PhotoCategoriesGrid: View {
     let categories: [PhotoCategory]
-    
+    let onCategoryTapped: (PhotoCategory) -> Void
+
     var body: some View {
         LazyVGrid(columns: [
             GridItem(.flexible(), spacing: 10),
             GridItem(.flexible(), spacing: 10)
         ], spacing: 10) {
             ForEach(categories, id: \.title) { category in
-                PhotoCategoryCard(category: category)
+                PhotoCategoryCard(category: category) {
+                    onCategoryTapped(category)
+                }
             }
         }
         .padding(.top,10)
@@ -396,8 +407,10 @@ struct PhotoCategoriesGrid: View {
 
 struct PhotoCategoryCard: View {
     let category: PhotoCategory
+    let onTapped: () -> Void
 
     var body: some View {
+        Button(action: onTapped) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text(String(category.numPhotos))
@@ -409,7 +422,7 @@ struct PhotoCategoryCard: View {
                         .font(.largeTitle)
                         .foregroundColor(.white)
                 }
-                
+
                               Text(category.title)
                     .font(.system(size: 18, weight: .bold))
                       .foregroundColor(.white)
@@ -421,6 +434,8 @@ struct PhotoCategoryCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(category.color)
             .cornerRadius(12)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -581,6 +596,7 @@ struct HomeNoResultsView: View {
 struct SearchResultsList: View {
     let results: [SearchResult]
     let onResultTapped: (SearchResult) -> Void
+    @StateObject private var imageManager = ThumbnailImageManager.shared
 
     private let columns = [
         GridItem(.flexible(), spacing: 8),
@@ -600,6 +616,19 @@ struct SearchResultsList: View {
             .padding(.horizontal, 16)
             .padding(.top, 16)
         }
+        .onAppear {
+            preloadVisibleThumbnails()
+        }
+    }
+
+    private func preloadVisibleThumbnails() {
+        // Preload first batch of thumbnails for faster initial display
+        let initialBatchSize = min(9, results.count) // First 9 items (3 columns × 3 rows)
+        let initialDocumentIDs = Array(results.prefix(initialBatchSize).map { $0.documentID })
+
+        Task {
+            _ = await imageManager.batchLoadThumbnails(documentIDs: initialDocumentIDs)
+        }
     }
 }
 
@@ -608,6 +637,7 @@ struct SearchResultThumbnail: View {
     let onTapped: () -> Void
     @State private var thumbnailImage: UIImage?
     @State private var isLoadingImage = true
+    @StateObject private var imageManager = ThumbnailImageManager.shared
 
     var body: some View {
         Button(action: onTapped) {
@@ -655,34 +685,26 @@ struct SearchResultThumbnail: View {
         .onAppear {
             loadThumbnailImage()
         }
+        .onDisappear {
+            // Cancel request if still loading when scrolled off screen
+            if isLoadingImage {
+                imageManager.cancelRequest(documentID: result.documentID)
+            }
+        }
     }
 
     private func loadThumbnailImage() {
-        let imageManager = PHImageManager.default()
-        let requestOptions = PHImageRequestOptions()
-        requestOptions.isSynchronous = false
-        requestOptions.deliveryMode = .opportunistic
-        requestOptions.isNetworkAccessAllowed = false
-        requestOptions.resizeMode = .exact
-
-        // Get the PHAsset using the document ID
-        let fetchOptions = PHFetchOptions()
-        fetchOptions.predicate = NSPredicate(format: "localIdentifier == %@", result.documentID)
-
-        let assets = PHAsset.fetchAssets(with: fetchOptions)
-
-        guard let asset = assets.firstObject else {
+        // Check cache first for immediate display
+        if let cachedImage = imageManager.getCachedThumbnail(documentID: result.documentID) {
+            thumbnailImage = cachedImage
             isLoadingImage = false
             return
         }
 
-        imageManager.requestImage(
-            for: asset,
-            targetSize: CGSize(width: 200, height: 200),
-            contentMode: .aspectFill,
-            options: requestOptions
-        ) { image, info in
-            DispatchQueue.main.async {
+        // Load from Photos library
+        Task {
+            let image = await imageManager.loadThumbnail(documentID: result.documentID)
+            await MainActor.run {
                 self.thumbnailImage = image
                 self.isLoadingImage = false
             }

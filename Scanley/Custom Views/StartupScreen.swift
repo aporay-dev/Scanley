@@ -33,7 +33,7 @@ struct StartupScreen: View {
                 
                 
                 VStack(){
-                    Text("Search engine for \n your photo library")
+                    Text("AI Powered Search for your photos.\n\t\tTame the chaos. Safely.")
                         .font(.system(size: 20, weight: .light))
                         .foregroundColor(.primary)
                 }
