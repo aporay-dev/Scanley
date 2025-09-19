@@ -41,21 +41,82 @@ class HomeViewModel: ObservableObject {
         do {
             let statistics = try swiftDataManager.getDocumentStatistics(context: context)
             totalDocumentsFound = statistics.totalDocumentsWithText
-            
+
             print("🔍 DEBUG: loadScanSummary found \(totalDocumentsFound) documents in SwiftData")
-            
+
             // Get the most recent document date as last scan date
             let allDocuments = try swiftDataManager.fetchAllDocumentTexts(context: context)
             lastScanDate = allDocuments.map { $0.dateExtracted }.max()
-            
+
+            // Load category counts from existing data
+            await loadCategoryCounts(context: context)
+
             if totalDocumentsFound == 0 {
                 print("📄 No documents in database - user needs to scan documents first")
             }
-            
+
         } catch {
             print("❌ Error loading scan summary: \(error)")
             totalDocumentsFound = 0
             lastScanDate = nil
+        }
+    }
+
+    func loadCategoryCounts(context: ModelContext) async {
+        do {
+            let allDocuments = try swiftDataManager.fetchAllDocumentTexts(context: context)
+
+            // Count documents by category
+            var categoryCounts: [String: Int] = [:]
+            for document in allDocuments {
+                let category = document.documentType
+                categoryCounts[category, default: 0] += 1
+            }
+
+            print("🔍 DEBUG: Found category counts from SwiftData:")
+            for (category, count) in categoryCounts {
+                print("   \(category): \(count) documents")
+            }
+
+            // Update photoCategories with actual counts
+            for index in photoCategories.indices {
+                let categoryTitle = photoCategories[index].title
+
+                // Map category titles to document type strings
+                let documentTypeString: String
+                switch categoryTitle {
+                case "Tax":
+                    documentTypeString = "Tax"
+                case "Receipts":
+                    documentTypeString = "Receipts"
+                case "Invoices & Bills":
+                    documentTypeString = "Invoice/Bills"
+                case "Bank":
+                    documentTypeString = "Bank"
+                case "Medical":
+                    documentTypeString = "Medical"
+                case "Legal":
+                    documentTypeString = "Legal"
+                case "Govt":
+                    documentTypeString = "Government"
+                case "Insurance":
+                    documentTypeString = "Insurance"
+                default:
+                    documentTypeString = categoryTitle
+                }
+
+                photoCategories[index].numPhotos = categoryCounts[documentTypeString] ?? 0
+            }
+
+            print("📱 Updated photoCategories with SwiftData counts:")
+            for category in photoCategories {
+                print("   \(category.title): \(category.numPhotos) documents")
+            }
+
+        } catch {
+            print("❌ Error loading category counts: \(error)")
+            // Reset to 0 if there's an error
+            resetPhotoCategories()
         }
     }
     
