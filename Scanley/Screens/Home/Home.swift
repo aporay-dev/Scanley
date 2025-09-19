@@ -129,67 +129,31 @@ struct Home: View {
                 Spacer()
                 HStack {
                     Spacer()
-                    // TMP BUTTONS. REMOVE HSTACK
-                    HStack(spacing: 8) {
-                        // Classify Button (For Testing)
-                        Button(action: {
-                            Task {
-                                await viewModel.classifyDocuments(context: modelContext)
-                            }
-                        }) {
-                            HStack(spacing: 4) {
-                                if viewModel.isClassifying {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .blue))
-                                } else {
-                                    Image(systemName: "brain")
-                                        .font(.system(size: 12, weight: .medium))
-                                }
-                                Text(viewModel.isClassifying ? "Classifying..." : "Classify")
-                                    .font(.system(size: 12, weight: .medium))
-                            }
-                            .foregroundColor(.blue)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.blue.opacity(0.1))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                                    )
-                            )
+                    // Temporary Delete All Data Button (For Testing)
+                    Button(action: {
+                        Task {
+                            await viewModel.deleteAllData(context: modelContext)
                         }
-                        .buttonStyle(PlainButtonStyle())
-                        .disabled(viewModel.isClassifying)
-                        
-                        // Temporary Delete All Data Button (For Testing)
-                        Button(action: {
-                            Task {
-                                await viewModel.deleteAllData(context: modelContext)
-                            }
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 12, weight: .medium))
-                                Text("Delete All")
-                                    .font(.system(size: 12, weight: .medium))
-                            }
-                            .foregroundColor(.red)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.red.opacity(0.1))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                                    )
-                            )
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("Delete All")
+                                .font(.system(size: 12, weight: .medium))
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.red.opacity(0.1))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                                )
+                        )
                     }
+                    .buttonStyle(PlainButtonStyle())
                     
                     VStack(spacing: 12) {
                         // Test OCR Button (New Simple Approach)

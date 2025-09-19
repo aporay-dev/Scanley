@@ -19,13 +19,19 @@ class SimpleOCRViewModel: ObservableObject {
     @Published var documentsWithTextFound = 0
     @Published var lastError: String?
     @Published var isTestMode = false
-    
+
+    // Classification properties
+    @Published var isClassifying = false
+    @Published var classificationProgress: Double = 0.0
+    @Published var classificationStatus = ""
+
     private var modelContext: ModelContext?
     private var backgroundContext: ModelContext?
     private var scanTask: Task<Void, Never>?
     private let swiftDataManager = SwiftDataManager.shared
     private let performanceMonitor = PerformanceMonitor.shared
     private var batchDocumentSaver: BatchDocumentSaver?
+    private let classificationViewModel = DocumentClassificationViewModel()
     
     init() {}
     
@@ -75,11 +81,17 @@ class SimpleOCRViewModel: ObservableObject {
                 documentsWithTextFound = 0
                 
                 try await performSimpleOCRScan()
-                
+
                 if !Task.isCancelled {
                     isScanning = false
                     scanStatusMessage = "\(AlertManager.ocrMessages.scanCompleted): \(documentsWithTextFound) photos with text found from \(totalPhotosScanned) photos"
                     print("🎉 Simple OCR scan completed successfully!")
+
+                    // Automatically start classification after scan completion
+                    if documentsWithTextFound > 0 {
+                        print("🤖 Starting automatic classification after scan completion...")
+                        await startAutoClassification()
+                    }
                 }
             } catch {
                 if !Task.isCancelled {
@@ -106,7 +118,57 @@ class SimpleOCRViewModel: ObservableObject {
             await batchDocumentSaver?.finalizeAndSave()
         }
     }
-    
+
+    private func startAutoClassification() async {
+        guard let modelContext = modelContext else {
+            print("❌ No model context available for classification")
+            return
+        }
+
+        guard !isClassifying else {
+            print("⚠️ Classification already in progress")
+            return
+        }
+
+        print("🤖 Starting automatic document classification after scan")
+
+        // Set up classification ViewModel
+        classificationViewModel.setModelContext(modelContext)
+
+        // Update local state
+        isClassifying = true
+        classificationProgress = 0.0
+        classificationStatus = "Classifying documents..."
+        scanStatusMessage = "Scan complete. Classifying documents..."
+
+        // Start classification
+        await classificationViewModel.startClassification()
+
+        // Update final state
+        isClassifying = classificationViewModel.isClassifying
+        classificationProgress = 1.0
+
+        if let error = classificationViewModel.lastError {
+            classificationStatus = "Classification failed: \(error)"
+            scanStatusMessage = "Classification failed: \(error)"
+        } else if classificationViewModel.hasResults {
+            let summary = classificationViewModel.getClassificationSummary()
+            let totalClassified = classificationViewModel.classificationResults.count
+            classificationStatus = "✅ Classified \(totalClassified) documents successfully!"
+            scanStatusMessage = "✅ Scan and classification complete! \(totalClassified) documents classified."
+
+            // Print summary to console
+            print("🎯 AUTO-CLASSIFICATION COMPLETE:")
+            for (category, count) in summary.sorted(by: { $0.1 > $1.1 }) {
+                print("📊 \(category): \(count) documents")
+            }
+        } else {
+            classificationStatus = "No documents found to classify"
+            scanStatusMessage = "Scan complete. No documents found to classify."
+            print("🔍 Classification completed but no results found")
+        }
+    }
+
     // MARK: - Private Methods
     
     private func performSimpleOCRScan() async throws {
