@@ -187,7 +187,12 @@ struct Home: View {
             
             }
         }
-        .sheet(isPresented: $viewModel.showSimpleOCR) {
+        .sheet(isPresented: $viewModel.showSimpleOCR, onDismiss: {
+            // Refresh home data when SimpleOCR sheet is dismissed
+            Task {
+                await viewModel.loadScanSummary(context: modelContext)
+            }
+        }) {
             SimpleOCRView()
         }
         .sheet(isPresented: $viewModel.showCategoryDetail) {
@@ -238,27 +243,13 @@ struct FunctionalSearchBox: View {
                     .foregroundColor(.primary)
                     .tint(.purple)
                     .textFieldStyle(PlainTextFieldStyle())
+                    .submitLabel(.search)
                     .onSubmit {
                         onSearchSubmitted()
                     }
                     .onChange(of: searchText) { _, newValue in
                         onSearchTextChanged(newValue)
                     }
-
-                if !searchText.isEmpty {
-                    Button("Clear") {
-                        searchText = ""
-                        onSearchTextChanged("")
-                    }
-                    .font(.system(size: 14))
-                    .foregroundColor(.purple)
-                    .padding(.trailing, 16)
-                } else {
-                    Text("Go")
-                        .font(.system(size: 18, weight: .black))
-                        .foregroundColor(.purple)
-                        .padding(.trailing, 16)
-                }
             }
             .padding(.vertical, 16)
             .background(
