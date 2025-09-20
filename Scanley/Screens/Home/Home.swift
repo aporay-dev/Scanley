@@ -20,6 +20,7 @@ struct Home: View {
     @State private var searchService: DocumentSearchService?
     @State private var showSearchResults = false
     @State private var isSearching = false
+    @State private var showSettings = false
     
     var body: some View {
         ZStack {
@@ -36,9 +37,19 @@ struct Home: View {
                             .padding(.leading, 4)
                             .accessibilityLabel("Scanley")
 
-                        
+
                         Spacer()
-                        
+
+                        // Settings Button
+                        Button(action: {
+                            showSettings = true
+                        }) {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(.primary)
+                                .frame(width: 32, height: 32)
+                        }
+                        .padding(.trailing, 4)
 
                     }
                     .padding(.top, 1)
@@ -214,6 +225,9 @@ struct Home: View {
                     }
                 )
             }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
         }
         .task {
             await viewModel.loadScanSummary(context: modelContext)
