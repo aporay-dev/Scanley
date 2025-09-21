@@ -135,68 +135,6 @@ struct Home: View {
             }
             .background(Color(UIColor.systemGroupedBackground))
             
-            // Floating Action Buttons - Bottom Right
-        VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    // Temporary Delete All Data Button (For Testing)
-                    Button(action: {
-                        Task {
-                            await viewModel.deleteAllData(context: modelContext)
-                        }
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 12, weight: .medium))
-                            Text("Delete All")
-                                .font(.system(size: 12, weight: .medium))
-                        }
-                        .foregroundColor(.red)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.red.opacity(0.1))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                                )
-                        )
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    
-                    VStack(spacing: 12) {
-                        // Test OCR Button (New Simple Approach)
-                        Button(action: {
-                            viewModel.openSimpleOCR()
-                        }) {
-                            HStack(spacing: 8) {
-                                Text("Scan now")
-                                    .font(.system(size: 14, weight: .medium))
-                                Image(systemName: "doc.text.magnifyingglass")
-                                    .font(.system(size: 14, weight: .medium))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color.orange)
-                            )
-                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                        }
-                        
-                    }
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 20) // Account for safe area
-                    
-                    
-                    
-                    
-                }
-            
-            }
         }
         .sheet(isPresented: $viewModel.showSimpleOCR, onDismiss: {
             // Refresh home data when SimpleOCR sheet is dismissed

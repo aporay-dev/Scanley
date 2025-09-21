@@ -7,14 +7,21 @@
 
 import SwiftUI
 import Photos
+import SwiftData
 
 struct SettingsView: View {
     @Environment(\.presentationMode) var presentationMode
+    @Environment(\.modelContext) private var modelContext
     @State private var photoLibraryStatus: PHAuthorizationStatus = .notDetermined
+    @State private var showClearDataAlert = false
+    @State private var showSimpleOCR = false
+
+    private let swiftDataManager = SwiftDataManager.shared
 
     var body: some View {
         NavigationView {
             List {
+
                 // About Section
                 Section {
                     SettingsRow(
@@ -67,6 +74,43 @@ struct SettingsView: View {
                     )
                 }
 
+                // Data Management Section
+                Section {
+                    SettingsRow(
+                        icon: "externaldrive.badge.xmark",
+                        iconColor: .orange,
+                        title: "Data Management",
+                        subtitle: "Manage history and app settings",
+                        showChevron: false
+                    )
+
+                    Button(action: {
+                        showClearDataAlert = true
+                    }) {
+                        SettingsRow(
+                            icon: "trash",
+                            iconColor: .red,
+                            title: "Clear Scan Data",
+                            subtitle: nil,
+                            showChevron: false
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+
+                    Button(action: {
+                        showSimpleOCR = true
+                    }) {
+                        SettingsRow(
+                            icon: "arrow.clockwise",
+                            iconColor: .blue,
+                            title: "Perform Full Scan",
+                            subtitle: nil,
+                            showChevron: false
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                
                 // User Permissions Section
                 Section {
                     SettingsRow(
@@ -97,11 +141,33 @@ struct SettingsView: View {
             .onAppear {
                 checkPhotoLibraryPermission()
             }
+            .alert("Clear All Scan Data", isPresented: $showClearDataAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Clear Data", role: .destructive) {
+                    Task {
+                        await clearAllScanData()
+                    }
+                }
+            } message: {
+                Text("This will permanently delete all scanned documents and data. This action cannot be undone.")
+            }
+            .sheet(isPresented: $showSimpleOCR) {
+                SimpleOCRView()
+            }
         }
     }
 
     private func checkPhotoLibraryPermission() {
         photoLibraryStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+    }
+
+    private func clearAllScanData() async {
+        do {
+            try swiftDataManager.deleteAllDocumentTexts(context: modelContext)
+            print("🗑️ All SwiftData documents deleted successfully from Settings")
+        } catch {
+            print("❌ Error deleting all data from Settings: \(error)")
+        }
     }
 }
 
