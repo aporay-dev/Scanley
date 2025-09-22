@@ -37,21 +37,26 @@ struct ScanleyApp: App {
     
     @MainActor
     private func performAppLaunchCleanup() async {
-        print("🚀 Scanley app launched - starting orphaned records cleanup...")
-        
+        // Initialize logger
+        let logger = AppLogger.shared
+        logger.info("Scanley app launched - starting orphaned records cleanup", category: .lifecycle)
+
+
         do {
             let container = try ModelContainer(for: DocumentText.self)
             let context = container.mainContext
             let swiftDataManager = SwiftDataManager.shared
-            
+
             let cleanedCount = try swiftDataManager.performAppLaunchCleanup(context: context)
-            
+
             if cleanedCount > 0 {
-                print("🎯 App launch cleanup summary: \(cleanedCount) orphaned records were removed from SwiftData")
+                logger.info("App launch cleanup summary: \(cleanedCount) orphaned records were removed from SwiftData", category: .database)
+            } else {
+                logger.debug("App launch cleanup completed: No orphaned records found", category: .database)
             }
-            
+
         } catch {
-            print("❌ App launch cleanup failed: \(error.localizedDescription)")
+            logger.error("App launch cleanup failed: \(error.localizedDescription)", category: .database)
         }
     }
 }

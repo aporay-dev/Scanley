@@ -231,6 +231,5 @@ class ThumbnailImageManager: ObservableObject {
             }
         }
 
-        print("🧹 ThumbnailImageManager: Cleared caches due to memory warning")
     }
 }

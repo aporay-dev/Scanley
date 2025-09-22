@@ -39,14 +39,12 @@ class SwiftDataManager: ObservableObject {
         let endTime = CFAbsoluteTimeGetCurrent()
         let duration = endTime - startTime
         
-        print("📊 Batch saved \(documentTexts.count) documents in \(String(format: "%.3f", duration))s")
     }
     
     // MARK: - Background Context Support
     
     func createBackgroundContext(from container: ModelContainer) -> ModelContext {
         let backgroundContext = ModelContext(container)
-        print("🔧 Created background context for batch operations")
         return backgroundContext
     }
     
@@ -106,7 +104,6 @@ class SwiftDataManager: ObservableObject {
         var documentsToSearch: [DocumentText]
         if let category = filterByCategory {
             documentsToSearch = try fetchDocumentTexts(filteredBy: category, context: context)
-            print("🔍 Searching within \(category) category: \(documentsToSearch.count) documents")
         } else {
             // Fetch all documents for search
             let descriptor = FetchDescriptor<DocumentText>()
@@ -135,21 +132,18 @@ class SwiftDataManager: ObservableObject {
             sortBy: [SortDescriptor(\DocumentText.dateExtracted, order: .reverse)]
         )
         let results = try context.fetch(descriptor)
-        print("📊 Found \(results.count) documents for category: \(category)")
         return results
     }
     
     // MARK: - App Launch Orphaned Records Cleanup
     
     func performAppLaunchCleanup(context: ModelContext) throws -> Int {
-        print("🧹 Starting app launch cleanup - checking for orphaned records...")
         
         let allDocuments = try fetchAllDocumentTexts(context: context)
         var cleanedCount = 0
         
         for document in allDocuments {
             if !isPhotoLibraryAssetValid(documentID: document.documentID) {
-                print("🗑️  Cleaning up orphaned record: \(document.documentID.prefix(8))... (Text: \(String(document.extractedText.prefix(50)))...)")
                 context.delete(document)
                 cleanedCount += 1
             }
@@ -157,9 +151,7 @@ class SwiftDataManager: ObservableObject {
         
         if cleanedCount > 0 {
             try context.save()
-            print("✅ App launch cleanup completed: \(cleanedCount) orphaned records removed")
         } else {
-            print("✅ App launch cleanup completed: No orphaned records found")
         }
         
         return cleanedCount

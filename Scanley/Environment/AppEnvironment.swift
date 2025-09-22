@@ -7,6 +7,37 @@
 
 import Foundation
 import SwiftUI
+import os.log
+
+// MARK: - Log Levels
+
+enum LogLevel: Int, CaseIterable {
+    case debug = 0
+    case info = 1
+    case warning = 2
+    case error = 3
+    case critical = 4
+
+    var emoji: String {
+        switch self {
+        case .debug: return "🔍"
+        case .info: return "ℹ️"
+        case .warning: return "⚠️"
+        case .error: return "❌"
+        case .critical: return "🚨"
+        }
+    }
+
+    var osLogType: OSLogType {
+        switch self {
+        case .debug: return .debug
+        case .info: return .info
+        case .warning: return .default
+        case .error: return .error
+        case .critical: return .fault
+        }
+    }
+}
 
 // MARK: - App Settings Environment
 
@@ -14,10 +45,29 @@ import SwiftUI
 class AppSettingsEnvironment: ObservableObject {
     @Published var ocrConfidenceThreshold: Float = 0.1
     @Published var minimumTextLength: Int = 10
-    
+
+    // Logging settings
+    @Published var isLoggingEnabled: Bool
+    @Published var logLevel: LogLevel
+
     static let shared = AppSettingsEnvironment()
-    
-    private init() {}
+
+    private init() {
+        #if DEBUG
+        self.isLoggingEnabled = true
+        self.logLevel = .debug
+        #else
+        self.isLoggingEnabled = false
+        self.logLevel = .error
+        #endif
+    }
+
+    func updateLoggingSettings(enabled: Bool, level: LogLevel) {
+        isLoggingEnabled = enabled
+        logLevel = level
+        AppLogger.shared.setLoggingEnabled(enabled)
+        AppLogger.shared.setMinimumLogLevel(level)
+    }
 }
 
 // MARK: - Scan State Environment

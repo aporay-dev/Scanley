@@ -39,21 +39,17 @@ class DocumentClassificationViewModel: ObservableObject {
         }
         
         guard !isClassifying else {
-            print("⚠️ Classification already in progress")
             return
         }
         
         lastError = nil
         statusMessage = "Starting AI classification..."
         
-        print("🚀 Starting document classification from ViewModel")
         
         await classificationService.classifyAllDocuments(context: context)
         
         if !classificationService.classificationResults.isEmpty {
             statusMessage = "Classification completed successfully!"
-            print("✅ Classification completed from ViewModel")
-            printViewModelSummary()
         } else {
             statusMessage = "No documents found to classify"
         }
@@ -97,35 +93,6 @@ class DocumentClassificationViewModel: ObservableObject {
         }
     }
     
-    private func printViewModelSummary() {
-        let summary = getClassificationSummary()
-        let totalDocuments = classificationResults.count
-        
-        print("\n🎯 VIEWMODEL CLASSIFICATION SUMMARY:")
-        print(String(repeating: "=", count: 45))
-        print("📱 Total Documents Processed: \(totalDocuments)")
-        
-        for (category, count) in summary.sorted(by: { $0.1 > $1.1 }) {
-            let percentage = totalDocuments > 0 ? (Double(count) / Double(totalDocuments)) * 100 : 0
-            print("📊 \(category): \(count) documents (\(String(format: "%.1f", percentage))%)")
-        }
-        
-        // Find highest confidence classifications
-        let highConfidenceResults = classificationResults
-            .filter { $0.confidence > 0.8 }
-            .sorted { $0.confidence > $1.confidence }
-            .prefix(3)
-        
-        if !highConfidenceResults.isEmpty {
-            print("\n🏆 TOP CONFIDENT CLASSIFICATIONS:")
-            for (index, result) in highConfidenceResults.enumerated() {
-                print("\(index + 1). \(result.classification.rawValue) - Confidence: \(String(format: "%.2f", result.confidence))")
-                print("   📄 Text preview: \(result.originalText.prefix(50))...")
-            }
-        }
-        
-        print(String(repeating: "=", count: 45))
-    }
 }
 
 // MARK: - Helper Extensions

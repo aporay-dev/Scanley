@@ -87,14 +87,12 @@ struct CategoryDetailView: View {
                     self.isLoading = false
                 }
 
-                print("📱 Loaded \(searchResults.count) documents for category: \(category.title)")
 
             } catch {
                 await MainActor.run {
                     self.loadError = "Failed to load documents: \(error.localizedDescription)"
                     self.isLoading = false
                 }
-                print("❌ Error loading documents for category \(category.title): \(error)")
             }
         }
     }

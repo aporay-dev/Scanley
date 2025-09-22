@@ -130,6 +130,19 @@ struct SettingsView: View {
                                photoLibraryStatus == .denied ? "Denied" : "Not Determined"
                     )
                 }
+
+#if DEBUG
+                // Debug Section (only in debug builds)
+                Section {
+                    SettingsRow(
+                        icon: "ladybug",
+                        iconColor: .purple,
+                        title: "Debug Tools",
+                        subtitle: "Development and debugging tools (Debug Build Only)",
+                        showChevron: false
+                    )
+                }
+                #endif
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
@@ -164,9 +177,7 @@ struct SettingsView: View {
     private func clearAllScanData() async {
         do {
             try swiftDataManager.deleteAllDocumentTexts(context: modelContext)
-            print("🗑️ All SwiftData documents deleted successfully from Settings")
         } catch {
-            print("❌ Error deleting all data from Settings: \(error)")
         }
     }
 }

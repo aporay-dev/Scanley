@@ -25,41 +25,30 @@ class DocumentClassificationService: ObservableObject {
     // MARK: - Public Methods
     
     func classifyAllDocuments(context: ModelContext) async {
-        guard !isClassifying else { return }
-        
+        guard !isClassifying else {
+            logWarning("Classification already in progress", category: .classification)
+            return
+        }
+
         isClassifying = true
         classificationProgress = 0.0
         classificationResults.removeAll()
-        
-        print("🤖 Starting on-device AI document classification...")
-        
+
+        logInfo("Starting document classification", category: .classification)
+
         do {
             let allDocuments = try swiftDataManager.fetchAllDocumentTexts(context: context)
             let totalDocuments = allDocuments.count
-            
-            print("🔍 DEBUG: SwiftData query returned \(totalDocuments) documents")
-            
+
+            logInfo("Found \(totalDocuments) documents to classify", category: .classification)
+
             if totalDocuments == 0 {
-                print("📄 No documents found to classify")
-                print("🔍 DEBUG: This usually means:")
-                print("   1. No scanning has been performed yet")
-                print("   2. Documents were not saved to SwiftData properly") 
-                print("   3. Database context issue")
-                print("💡 Try scanning documents first to populate the database")
                 isClassifying = false
+                logDebug("No documents found to classify", category: .classification)
                 return
             }
             
-            // Log first few documents for debugging
-            print("📋 DEBUG: Sample documents found:")
-            for (index, doc) in allDocuments.prefix(3).enumerated() {
-                print("   \(index + 1). ID: \(doc.documentID.prefix(8))...")
-                print("      Text: \(String(doc.extractedText.prefix(100)))...")
-                print("      Type: \(doc.documentType)")
-                print("      Date: \(doc.dateExtracted)")
-            }
             
-            print("📊 Found \(totalDocuments) documents to classify")
             
             // Process documents in batches for better performance
             let batchSize = 10
@@ -93,7 +82,6 @@ class DocumentClassificationService: ObservableObject {
                         classificationProgress = Double(processedCount) / Double(totalDocuments)
                         
                         let progressPercent = Int(classificationProgress * 100)
-                        print("🔄 Classification Progress: \(progressPercent)% (\(processedCount)/\(totalDocuments))")
                     }
                 }
                 
@@ -102,13 +90,13 @@ class DocumentClassificationService: ObservableObject {
             }
             
             isClassifying = false
-            
-            // Print summary
-            printClassificationSummary()
-            
+
+            // Log summary
+            logClassificationSummary()
+
         } catch {
-            print("❌ Error during classification: \(error)")
             isClassifying = false
+            logError("Classification failed: \(error.localizedDescription)", category: .classification)
         }
     }
     
@@ -125,8 +113,7 @@ class DocumentClassificationService: ObservableObject {
 
         // Only classify documents that meet confidence threshold
         guard classificationResult.confidence >= 0.15 else {
-            print("⏭️  Document \(document.documentID.prefix(8)): Skipping classification - low confidence (\(String(format: "%.2f", classificationResult.confidence)))")
-            print("💡 Keeping as 'Text Document' to avoid classification bias")
+            logDebug("Low confidence classification (\(String(format: "%.3f", classificationResult.confidence))) for document, skipping", category: .classification)
             return nil // Don't create result for low-confidence classifications
         }
 
@@ -138,7 +125,6 @@ class DocumentClassificationService: ObservableObject {
             processingTime: processingTime
         )
 
-        print("🏷️  Document \(document.documentID.prefix(8)): \(classificationResult.category.rawValue) (confidence: \(String(format: "%.2f", result.confidence)))")
 
         return result
     }
@@ -259,7 +245,6 @@ class DocumentClassificationService: ObservableObject {
                 let exclusionTerm = String(keyword.dropFirst()).lowercased()
                 if joinedText.contains(exclusionTerm) {
                     score -= 10.0 // Heavy penalty for exclusion matches
-                    print("❌ Exclusion keyword '\(exclusionTerm)' found - penalizing score")
                     continue
                 }
             }
@@ -286,13 +271,11 @@ class DocumentClassificationService: ObservableObject {
                     // Higher score for exact matches, lower for substring matches
                     let exactMatches = words.filter { $0.lowercased() == keywordLower }.count
                     score += Float(exactMatches) * 2.0 + Float(keywordMatches - exactMatches) * 1.0
-                    print("✅ Keyword '\(keyword)' matched \(keywordMatches) times (exact: \(exactMatches))")
                 }
             } else {
                 // Multi-word keyword - check for phrase matches
                 if joinedText.contains(keywordLower) {
                     score += 3.0 // Higher weight for exact multi-word matches
-                    print("✅ Multi-word keyword '\(keyword)' found")
                 }
             }
         }
@@ -300,7 +283,6 @@ class DocumentClassificationService: ObservableObject {
         // Normalize score based on text length, but with a minimum threshold
         let normalizedScore = totalWords > 0 ? score / totalWords : 0.0
         
-        print("📊 Category score: \(score) / \(totalWords) words = \(normalizedScore)")
         
         return normalizedScore
     }
@@ -329,7 +311,6 @@ class DocumentClassificationService: ObservableObject {
             if keywordMatches > 0 {
                 let exactMatches = words.filter { $0.lowercased() == keywordLower }.count
                 score += Float(exactMatches) * 2.0 + Float(keywordMatches - exactMatches) * 1.0
-                print("✅ High-confidence medical keyword '\(keyword)' matched \(keywordMatches) times")
             }
         }
         
@@ -349,7 +330,6 @@ class DocumentClassificationService: ObservableObject {
                 
                 if keywordMatches > 0 {
                     score += Float(keywordMatches) * 1.0
-                    print("✅ Context-dependent medical keyword '\(keyword)' matched \(keywordMatches) times (medical context found)")
                 }
             }
         } else {
@@ -364,10 +344,8 @@ class DocumentClassificationService: ObservableObject {
                     }
                     
                     if hasAutomotiveContext {
-                        print("⚠️ Context-dependent keyword '\(keyword)' found in automotive context - not scoring")
                         // Don't add to score, but don't penalize either
                     } else {
-                        print("⚠️ Context-dependent keyword '\(keyword)' found without medical context - minimal score")
                         score += 0.1 // Very minimal score for isolated context-dependent keywords
                     }
                 }
@@ -376,7 +354,6 @@ class DocumentClassificationService: ObservableObject {
         
         // Normalize score
         let normalizedScore = totalWords > 0 ? score / totalWords : 0.0
-        print("📊 Medical score: \(score) / \(totalWords) words = \(normalizedScore) (medical context: \(hasMedicalContext))")
         
         return normalizedScore
     }
@@ -389,31 +366,26 @@ class DocumentClassificationService: ObservableObject {
                 try context.save()
             }
         } catch {
-            print("❌ Error updating document type: \(error)")
         }
     }
     
-    private func printClassificationSummary() {
+    private func logClassificationSummary() {
         let summary = Dictionary(grouping: classificationResults, by: { $0.classification })
             .mapValues { $0.count }
-        
-        print("\n📊 CLASSIFICATION SUMMARY:")
-        print(String(repeating: "=", count: 40))
-        
+
+        logInfo("Classification completed. Total documents processed: \(classificationResults.count)", category: .classification)
+
         for (category, count) in summary.sorted(by: { $0.1 > $1.1 }) {
-            print("📋 \(category.rawValue): \(count) documents")
+            logInfo("Category \(category.rawValue): \(count) documents", category: .classification)
         }
-        
-        let avgConfidence = classificationResults.isEmpty ? 0.0 : 
+
+        let avgConfidence = classificationResults.isEmpty ? 0.0 :
             classificationResults.map { $0.confidence }.reduce(0, +) / Float(classificationResults.count)
-        
-        let avgProcessingTime = classificationResults.isEmpty ? 0.0 : 
+
+        let avgProcessingTime = classificationResults.isEmpty ? 0.0 :
             classificationResults.map { $0.processingTime }.reduce(0, +) / Double(classificationResults.count)
-        
-        print("📈 Average Confidence: \(String(format: "%.2f", avgConfidence))")
-        print("⏱️  Average Processing Time: \(String(format: "%.3f", avgProcessingTime))s per document")
-        print("🎯 Total Documents Classified: \(classificationResults.count)")
-        print(String(repeating: "=", count: 40))
+
+        logInfo("Average confidence: \(String(format: "%.3f", avgConfidence)), Average processing time: \(String(format: "%.3f", avgProcessingTime))s", category: .performance)
     }
 }
 

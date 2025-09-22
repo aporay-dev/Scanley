@@ -45,7 +45,6 @@ class SimpleOCRViewModel: ObservableObject {
         self.batchDocumentSaver = BatchDocumentSaver(batchSize: 15)
         self.batchDocumentSaver?.setBackgroundContext(backgroundContext!)
         
-        print("🔧 Performance optimizations initialized")
     }
     
     // MARK: - Public Methods
@@ -78,17 +77,19 @@ class SimpleOCRViewModel: ObservableObject {
                 scanStatusMessage = AlertManager.ocrMessages.scanStarted
                 totalPhotosScanned = 0
                 documentsWithTextFound = 0
-                
+
+                logInfo("Starting OCR scan", category: .ocr)
+
                 try await performSimpleOCRScan()
 
                 if !Task.isCancelled {
                     isScanning = false
                     scanStatusMessage = "\(AlertManager.ocrMessages.scanCompleted): \(documentsWithTextFound) photos with text found from \(totalPhotosScanned) photos"
-                    print("🎉 Simple OCR scan completed successfully!")
+
+                    logInfo("OCR scan completed: \(documentsWithTextFound) documents with text found from \(totalPhotosScanned) photos scanned", category: .ocr)
 
                     // Automatically start classification after scan completion
                     if documentsWithTextFound > 0 {
-                        print("🤖 Starting automatic classification after scan completion...")
                         await startAutoClassification()
                     }
                 }
@@ -97,7 +98,7 @@ class SimpleOCRViewModel: ObservableObject {
                     isScanning = false
                     lastError = error.localizedDescription
                     scanStatusMessage = "\(AlertManager.ocrMessages.scanFailed): \(error.localizedDescription)"
-                    print("❌ Simple scan failed: \(error.localizedDescription)")
+                    logError("OCR scan failed: \(error.localizedDescription)", category: .ocr)
                 }
             }
         }
@@ -110,7 +111,6 @@ class SimpleOCRViewModel: ObservableObject {
         scanTask = nil
         isScanning = false
         scanStatusMessage = AlertManager.ocrMessages.scanCancelled
-        print("🛑 Simple scan cancelled by user")
         
         // Finalize any pending batch operations
         Task {
@@ -120,16 +120,13 @@ class SimpleOCRViewModel: ObservableObject {
 
     private func startAutoClassification() async {
         guard let modelContext = modelContext else {
-            print("❌ No model context available for classification")
             return
         }
 
         guard !isClassifying else {
-            print("⚠️ Classification already in progress")
             return
         }
 
-        print("🤖 Starting automatic document classification after scan")
 
         // Set up classification ViewModel
         classificationViewModel.setModelContext(modelContext)
@@ -151,20 +148,15 @@ class SimpleOCRViewModel: ObservableObject {
             classificationStatus = "Classification failed: \(error)"
             scanStatusMessage = "Classification failed: \(error)"
         } else if classificationViewModel.hasResults {
-            let summary = classificationViewModel.getClassificationSummary()
+            _ = classificationViewModel.getClassificationSummary()
             let totalClassified = classificationViewModel.classificationResults.count
             classificationStatus = "✅ Classified \(totalClassified) documents successfully!"
             scanStatusMessage = "✅ Scan and classification complete! \(totalClassified) documents classified."
 
             // Print summary to console
-            print("🎯 AUTO-CLASSIFICATION COMPLETE:")
-            for (category, count) in summary.sorted(by: { $0.1 > $1.1 }) {
-                print("📊 \(category): \(count) documents")
-            }
         } else {
             classificationStatus = "No documents found to classify"
             scanStatusMessage = "Scan complete. No documents found to classify."
-            print("🔍 Classification completed but no results found")
         }
     }
 
@@ -184,7 +176,8 @@ class SimpleOCRViewModel: ObservableObject {
         let totalCount = allPhotos.count
         scanStatusMessage = "Running scan on \(totalCount) photos..."
 
-        print("🚀 Starting Document scan on \(totalCount) photos")
+        logInfo("Starting OCR processing for \(totalCount) photos", category: .ocr)
+
         
         let imageManager = PHImageManager.default()
         let requestOptions = PHImageRequestOptions()
@@ -195,7 +188,6 @@ class SimpleOCRViewModel: ObservableObject {
         
         // Dynamic batch sizing based on device capabilities
         let batchSize = performanceMonitor.optimalBatchSize()
-        print("📊 Using optimal batch size: \(batchSize) for this device")
         
         // Reset performance monitoring
         performanceMonitor.resetStats()
@@ -239,7 +231,6 @@ class SimpleOCRViewModel: ObservableObject {
             let throttleTime = performanceMonitor.shouldThrottle()
             
             if throttleTime > 0 {
-                print("⏱️ Dynamic throttling: \(String(format: "%.3f", throttleTime))s (batch took \(String(format: "%.3f", batchTime))s)")
                 try? await Task.sleep(nanoseconds: UInt64(throttleTime * 1_000_000_000))
             }
         }
@@ -251,25 +242,21 @@ class SimpleOCRViewModel: ObservableObject {
         if let bgContext = backgroundContext {
             do {
                 try bgContext.save()
-                print("💾 Background context saved successfully")
                 
                 // Refresh main context to see background changes
                 if let mainContext = modelContext {
                     try mainContext.save()
-                    print("🔄 Main context refreshed")
                     
                     // Verify documents are now visible in main context
                     let allDocs = try swiftDataManager.fetchAllDocumentTexts(context: mainContext)
-                    print("🔍 DEBUG: After scan, main context has \(allDocs.count) documents")
                 }
             } catch {
-                print("❌ Error saving contexts after Scan: \(error)")
             }
         }
         
-        // Print performance summary
+        // Log performance summary
         let stats = performanceMonitor.getPerformanceStats()
-        print("📈 Performance Summary: avg processing time: \(String(format: "%.3f", stats.averageProcessingTime))s, total processed: \(stats.totalProcessedCount)")
+        logInfo("OCR Performance Summary - Avg processing time: \(String(format: "%.3f", stats.averageProcessingTime))s, Total processed: \(stats.totalProcessedCount)", category: .performance)
     }
     
     private func processPhotoAtIndex(_ index: Int, asset: PHAsset, imageManager: PHImageManager, requestOptions: PHImageRequestOptions) async {
@@ -278,11 +265,9 @@ class SimpleOCRViewModel: ObservableObject {
         // Check if we already have OCR data for this photo
         do {
             if try swiftDataManager.documentTextExists(for: asset.localIdentifier, context: context) {
-                print("⏭️  Skipping photo \(index + 1) - scan data already exists")
                 return
             }
         } catch {
-            print("❌ Error checking existing scan data: \(error)")
             return
         }
         
@@ -298,7 +283,6 @@ class SimpleOCRViewModel: ObservableObject {
         }
         
         guard let image = processedImage else {
-            print("❌ Failed to load image for photo \(index + 1)")
             return
         }
         
@@ -309,7 +293,6 @@ class SimpleOCRViewModel: ObservableObject {
             self.totalPhotosScanned += 1
         }
         
-        print("🔍 Photo \(index + 1): scan data found \(ocrResult.text.count) characters (confidence: \(ocrResult.confidence))")
         
         // Filter by confidence and text length - keep photos with meaningful text
         if ocrResult.confidence > 0.1 && ocrResult.text.count > 10 {
@@ -324,9 +307,7 @@ class SimpleOCRViewModel: ObservableObject {
                 self.documentsWithTextFound += 1
             }
             
-            print("✅ Photo \(index + 1): Text stored (length: \(ocrResult.text.count))")
         } else {
-            print("⏭️  Photo \(index + 1): Skipped - insufficient text (confidence: \(ocrResult.confidence), length: \(ocrResult.text.count))")
         }
     }
     
@@ -393,14 +374,12 @@ class SimpleOCRViewModel: ObservableObject {
         } else {
             // Fallback to individual save if batch saver not available
             guard let context = modelContext else {
-                print("❌ No model context available for storing scan result")
                 return
             }
             
             do {
                 try swiftDataManager.saveDocumentText(documentText, context: context)
             } catch {
-                print("❌ Error saving scan result: \(error)")
             }
         }
     }

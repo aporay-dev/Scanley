@@ -42,7 +42,6 @@ class HomeViewModel: ObservableObject {
             let statistics = try swiftDataManager.getDocumentStatistics(context: context)
             totalDocumentsFound = statistics.totalDocumentsWithText
 
-            print("🔍 DEBUG: loadScanSummary found \(totalDocumentsFound) documents in SwiftData")
 
             // Get the most recent document date as last scan date
             let allDocuments = try swiftDataManager.fetchAllDocumentTexts(context: context)
@@ -52,11 +51,9 @@ class HomeViewModel: ObservableObject {
             await loadCategoryCounts(context: context)
 
             if totalDocumentsFound == 0 {
-                print("📄 No documents in database - user needs to scan documents first")
             }
 
         } catch {
-            print("❌ Error loading scan summary: \(error)")
             totalDocumentsFound = 0
             lastScanDate = nil
         }
@@ -73,26 +70,15 @@ class HomeViewModel: ObservableObject {
                 categoryCounts[category, default: 0] += 1
             }
 
-            print("🔍 DEBUG: Found category counts from SwiftData:")
-            print("🔍 DEBUG: Total documents: \(allDocuments.count)")
-            for (category, count) in categoryCounts.sorted(by: { $0.1 > $1.1 }) {
-                print("   \(category): \(count) documents")
-            }
 
             // Debug: Check for unexpected document types
             let knownTypes = ["Tax", "Receipts", "Invoices & Bills", "Bank", "Medical", "Legal", "Govt", "Insurance"]
             let unknownTypes = categoryCounts.keys.filter { !knownTypes.contains($0) }
             if !unknownTypes.isEmpty {
-                print("⚠️ DEBUG: Found unexpected document types:")
-                for unknownType in unknownTypes {
-                    print("   Unknown: '\(unknownType)' (\(categoryCounts[unknownType] ?? 0) documents)")
-                }
             }
 
             // Handle "Text Document" type (from simple OCR scan before classification)
-            if let textDocumentCount = categoryCounts["Text Document"] {
-                print("📄 DEBUG: Found \(textDocumentCount) unclassified 'Text Document' entries")
-                print("💡 These documents need to be classified to appear in categories")
+            if categoryCounts["Text Document"] != nil {
                 // Note: We don't show these in any category until they're properly classified
             }
 
@@ -126,13 +112,8 @@ class HomeViewModel: ObservableObject {
                 photoCategories[index].numPhotos = categoryCounts[documentTypeString] ?? 0
             }
 
-            print("📱 Updated photoCategories with SwiftData counts:")
-            for category in photoCategories {
-                print("   \(category.title): \(category.numPhotos) documents")
-            }
 
         } catch {
-            print("❌ Error loading category counts: \(error)")
             // Reset to 0 if there's an error
             resetPhotoCategories()
         }
@@ -154,7 +135,6 @@ class HomeViewModel: ObservableObject {
     func deleteAllData(context: ModelContext) async {
         do {
             try swiftDataManager.deleteAllDocumentTexts(context: context)
-            print("🗑️ All SwiftData documents deleted successfully")
             
             // Reset categories to zero
             resetPhotoCategories()
@@ -162,30 +142,19 @@ class HomeViewModel: ObservableObject {
             // Refresh the UI
             await loadScanSummary(context: context)
         } catch {
-            print("❌ Error deleting all data: \(error)")
         }
     }
     
     func classifyDocuments(context: ModelContext) async {
         guard !isClassifying else {
-            print("⚠️ Classification already in progress")
             return
         }
         
-        print("🤖 Starting document classification from HomeViewModel")
         
         // DEBUG: Check document count before classification
         do {
-            let allDocs = try swiftDataManager.fetchAllDocumentTexts(context: context)
-            print("🔍 DEBUG: HomeViewModel sees \(allDocs.count) documents in context before classification")
-            if allDocs.count > 0 {
-                print("📋 DEBUG: Sample documents in HomeViewModel context:")
-                for (index, doc) in allDocs.prefix(3).enumerated() {
-                    print("   \(index + 1). ID: \(doc.documentID.prefix(8))... Type: \(doc.documentType)")
-                }
-            }
+            _ = try swiftDataManager.fetchAllDocumentTexts(context: context)
         } catch {
-            print("❌ DEBUG: Error fetching documents in HomeViewModel: \(error)")
         }
         
         // Set up classification ViewModel
@@ -206,15 +175,10 @@ class HomeViewModel: ObservableObject {
         if let error = classificationViewModel.lastError {
             classificationStatus = "Classification failed: \(error)"
         } else if classificationViewModel.hasResults {
-            let summary = classificationViewModel.getClassificationSummary()
+            _ = classificationViewModel.getClassificationSummary()
             let totalClassified = classificationViewModel.classificationResults.count
             classificationStatus = "✅ Classified \(totalClassified) documents successfully!"
             
-            // Print summary to console
-            print("🎯 CLASSIFICATION COMPLETE:")
-            for (category, count) in summary.sorted(by: { $0.1 > $1.1 }) {
-                print("📊 \(category): \(count) documents")
-            }
             
             // Update photoCategories with actual counts
             await updatePhotoCategoriesWithCounts()
@@ -223,9 +187,6 @@ class HomeViewModel: ObservableObject {
             await loadScanSummary(context: context)
         } else {
             classificationStatus = "No documents found to classify"
-            print("🔍 DEBUG: Classification completed but no results found")
-            print("💡 This means no DocumentText records exist in SwiftData database")
-            print("🚀 Next steps: Scan documents to populate data first, then try 'Classify' again")
         }
     }
     
@@ -286,9 +247,5 @@ class HomeViewModel: ObservableObject {
             }
         }
         
-        print("📱 Updated photoCategories with classification counts:")
-        for category in photoCategories {
-            print("   \(category.title): \(category.numPhotos) documents")
-        }
     }
 }

@@ -21,21 +21,18 @@ class BatchDocumentSaver: ObservableObject {
     
     init(batchSize: Int = 15) {
         self.batchSize = batchSize
-        print("🏗️ BatchDocumentSaver initialized with batch size: \(batchSize)")
     }
     
     // MARK: - Context Management
     
     func setBackgroundContext(_ context: ModelContext) {
         self.backgroundContext = context
-        print("📱 Background context set for batch operations")
     }
     
     // MARK: - Batch Operations
     
     func addDocument(_ documentText: DocumentText) async {
         pendingDocuments.append(documentText)
-        print("📝 Added document to batch. Pending: \(pendingDocuments.count)/\(batchSize)")
         
         // Trigger batch save if we've reached the batch size
         if pendingDocuments.count >= batchSize {
@@ -46,14 +43,12 @@ class BatchDocumentSaver: ObservableObject {
     func flushBatch() async {
         guard !pendingDocuments.isEmpty else { return }
         guard let context = backgroundContext else {
-            print("❌ No background context available for batch save")
             return
         }
         
         let documentsToSave = pendingDocuments
         pendingDocuments.removeAll()
         
-        print("💾 Flushing batch of \(documentsToSave.count) documents")
         
         // Cancel any existing save task
         saveTask?.cancel()
@@ -73,10 +68,8 @@ class BatchDocumentSaver: ObservableObject {
                 let endTime = CFAbsoluteTimeGetCurrent()
                 let duration = endTime - startTime
                 
-                print("✅ Successfully saved batch of \(documentsToSave.count) documents in \(String(format: "%.3f", duration))s")
                 
             } catch {
-                print("❌ Error saving document batch: \(error)")
                 
                 // On failure, try to save individually as fallback
                 await fallbackIndividualSave(documentsToSave, context: context)
@@ -89,14 +82,11 @@ class BatchDocumentSaver: ObservableObject {
     // MARK: - Fallback Operations
     
     private func fallbackIndividualSave(_ documents: [DocumentText], context: ModelContext) async {
-        print("🔄 Attempting individual save fallback for \(documents.count) documents")
         
         for (index, document) in documents.enumerated() {
             do {
                 try swiftDataManager.saveDocumentText(document, context: context)
-                print("✅ Fallback saved document \(index + 1)/\(documents.count)")
             } catch {
-                print("❌ Fallback failed for document \(index + 1): \(error)")
             }
         }
     }
@@ -116,7 +106,6 @@ class BatchDocumentSaver: ObservableObject {
     // MARK: - Cleanup
     
     func finalizeAndSave() async {
-        print("🏁 Finalizing batch operations...")
         await flushBatch()
         saveTask?.cancel()
         saveTask = nil

@@ -58,7 +58,6 @@ struct DocumentDetailView: View {
             return
         }
 
-        print("📸 Loading image for document: \(searchResult.documentID)")
 
         // Load using optimized thumbnail manager first, then high-quality if needed
         Task {
@@ -69,7 +68,6 @@ struct DocumentDetailView: View {
                 if let image = image {
                     self.documentImage = image
                     self.isLoading = false
-                    print("✅ Successfully loaded document image from cache/optimized loading")
                 } else {
                     // Fallback to original high-quality loading
                     self.loadHighQualityImage()
@@ -95,7 +93,6 @@ struct DocumentDetailView: View {
         guard let asset = assets.firstObject else {
             isLoading = false
             loadError = "Document not found in photo library"
-            print("❌ Could not find asset with ID: \(searchResult.documentID)")
             return
         }
 
@@ -108,10 +105,8 @@ struct DocumentDetailView: View {
             DispatchQueue.main.async {
                 if let image = image {
                     self.documentImage = image
-                    print("✅ Successfully loaded high-quality document image")
                 } else {
                     self.loadError = "Failed to load image from photo library"
-                    print("❌ Failed to load image for document: \(searchResult.documentID)")
                 }
                 self.isLoading = false
             }
@@ -455,9 +450,7 @@ struct FullScreenImageView: View {
                         displayImage = highQualityImage
                     }
                     hasLoadedHighQuality = true
-                    print("✅ Loaded high-quality image: \(highQualityImage.size)")
                 } else {
-                    print("❌ Failed to load high-quality image")
                 }
             }
         }
@@ -513,7 +506,6 @@ struct FullScreenImageView: View {
                     }
                 }
 
-                print("📸 Requesting original quality image for document: \(documentID)")
             }
         }
     }
