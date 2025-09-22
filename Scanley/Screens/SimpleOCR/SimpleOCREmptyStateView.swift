@@ -23,7 +23,7 @@ struct SimpleOCREmptyStateView: View {
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text("This scan will process all photos to extract text and automatically classify documents")
+                Text("This scan will process all photos to extract text and automatically classify documents.")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -38,8 +38,8 @@ struct SimpleOCREmptyStateView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     BenefitRow(icon: "📸", text: "Analyzes all photos in your library")
-                    BenefitRow(icon: "🔍", text: "Makes all text searchable from home screen")
-                    BenefitRow(icon: "🤖", text: "AI search for your photos")
+                    BenefitRow(icon: "📸", text: "Make all text searchable from the home screen")
+                    BenefitRow(icon: "🤖", text: "Enable AI search for your photos")
                     BenefitRow(icon: "📱", text: "All on your device")
                     BenefitRow(icon: "🔒", text: "Nothing leaves your phone")
                     BenefitRow(icon: "🛡️", text: "Safe. Private. Secure")
