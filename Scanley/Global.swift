@@ -15,7 +15,6 @@ let defaultPhotoCategories: [PhotoCategory] = [
     PhotoCategory(numPhotos: 0, title: "Invoices", icon: "doc.text", color: Color(red: 0.4, green: 0.4, blue: 0.9)),
     PhotoCategory(numPhotos: 0, title: "Bills", icon: "creditcard", color: Color(red: 0.2, green: 0.6, blue: 0.8)),
     PhotoCategory(numPhotos: 0, title: "Barcodes\n& QR codes", icon: "qrcode", color: Color(red: 1.0, green: 0.6, blue: 0.2)),
-    PhotoCategory(numPhotos: 0, title: "Handwritten notes", icon: "scribble.variable", color: Color(red: 0.62, green: 0.102, blue: 0.82)),
     PhotoCategory(numPhotos: 0, title: "Illustrations", icon: "hand.draw", color: Color(red: 0.19, green: 0.43, blue: 0.98)),
 ]
 

@@ -22,7 +22,6 @@ enum DocumentType: String, CaseIterable {
     case invoice = "Invoice"
     case bill = "Bill"
     case barcode = "Barcode"
-    case handwritten = "Handwritten"
     case illustration = "Illustration"
     
     var color: Color {
@@ -40,7 +39,6 @@ enum DocumentType: String, CaseIterable {
         case .invoice: return Color(red: 0.4, green: 0.4, blue: 0.9)
         case .bill: return Color(red: 0.2, green: 0.6, blue: 0.8)
         case .barcode: return Color(red: 1.0, green: 0.6, blue: 0.2)
-        case .handwritten: return Color(red: 0.62, green: 0.102, blue: 0.82)
         case .illustration: return Color(red: 0.19, green: 0.43, blue: 0.98)
         }
     }
@@ -60,7 +58,6 @@ enum DocumentType: String, CaseIterable {
         case .invoice: return "doc.text"
         case .bill: return "creditcard"
         case .barcode: return "qrcode"
-        case .handwritten: return "scribble.variable"
         case .illustration: return "hand.draw"
         }
     }

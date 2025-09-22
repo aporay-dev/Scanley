@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Scanley is a SwiftUI-based iOS document scanning application built with Xcode 16.4, targeting iOS 18.5+. The app allows users to scan, categorize, and manage documents like receipts, invoices, barcodes, and handwritten notes.
+Scanley is a SwiftUI-based iOS document scanning application built with Xcode 16.4, targeting iOS 18.5+. The app allows users to scan, categorize, and manage documents like receipts, invoices, barcodes, and illustrations.
 
 ## Build and Development Commands
 
@@ -47,7 +47,7 @@ Scanley/
 
 #### Data Models
 - **PhotoCategory**: Struct defining document categories with count, title, icon, and color
-- **photoCategories**: Global array of predefined categories (Documents, Receipts, Invoices, Barcodes/QR codes, Handwritten notes, Illustrations)
+- **photoCategories**: Global array of predefined categories (Documents, Receipts, Invoices, Barcodes/QR codes, Illustrations)
 
 #### UI Components
 - **SearchBox**: Purple-themed search interface for documents
