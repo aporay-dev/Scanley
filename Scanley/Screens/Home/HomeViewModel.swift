@@ -80,7 +80,7 @@ class HomeViewModel: ObservableObject {
             }
 
             // Debug: Check for unexpected document types
-            let knownTypes = ["Tax", "Receipts", "Invoices & Bills", "Bank", "Medical", "Legal", "Govt", "Insurance", "Text Document"]
+            let knownTypes = ["Tax", "Receipts", "Invoices & Bills", "Bank", "Medical", "Legal", "Govt", "Insurance"]
             let unknownTypes = categoryCounts.keys.filter { !knownTypes.contains($0) }
             if !unknownTypes.isEmpty {
                 print("⚠️ DEBUG: Found unexpected document types:")
