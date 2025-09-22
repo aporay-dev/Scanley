@@ -44,7 +44,7 @@ struct Home: View {
                         Button(action: {
                             showSettings = true
                         }) {
-                            Image(systemName: "gearshape.fill")
+                            Image(systemName: "gearshape")
                                 .font(.system(size: 20, weight: .medium))
                                 .foregroundColor(.primary)
                                 .frame(width: 32, height: 32)
@@ -118,6 +118,7 @@ struct Home: View {
                         totalDocuments: viewModel.totalDocumentsFound,
                         lastScanDate: viewModel.lastScanDate
                     )
+                    .padding(.top,30)
 
                     // Photo Categories Grid
                     PhotoCategoriesGrid(
@@ -126,6 +127,7 @@ struct Home: View {
                             viewModel.openCategoryDetail(for: category)
                         }
                     )
+                    .padding(.top,15)
                     
                     Spacer()
                 }
@@ -286,7 +288,7 @@ struct ScanSummarySection: View {
                   .lineLimit(nil)
         }
         .padding(16)
-        .frame(height: 80)
+        .frame(height: 100)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(red: 1.0, green: 0.6, blue: 0.2))
         .cornerRadius(12)
@@ -343,6 +345,7 @@ struct PhotoCategoryCard: View {
             .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())
+        .padding(.top,5)
     }
 }
 
