@@ -18,7 +18,6 @@ class SimpleOCRScanner: ObservableObject {
     @Published var totalPhotosScanned = 0
     @Published var documentsWithTextFound = 0
     @Published var lastError: String?
-    @Published var isTestMode = false
     
     private var modelContext: ModelContext?
     private var scanTask: Task<Void, Never>?
@@ -121,12 +120,11 @@ class SimpleOCRScanner: ObservableObject {
             throw ScanError.noPhotosFound
         }
         
-        // Test mode: limit to latest 100 photos for faster testing
-        let totalCount = isTestMode ? min(allPhotos.count, 100) : allPhotos.count
-        let modeText = isTestMode ? " (Test Mode - Latest 100)" : ""
-        scanStatusMessage = "Running scan on \(totalCount) photos...\(modeText)"
-        
-        print("🚀 Starting scan on \(totalCount) photos\(modeText)")
+        // Process all photos in the library
+        let totalCount = allPhotos.count
+        scanStatusMessage = "Running scan on \(totalCount) photos..."
+
+        print("🚀 Starting Document scan on \(totalCount) photos")
         
         let imageManager = PHImageManager.default()
         let requestOptions = PHImageRequestOptions()

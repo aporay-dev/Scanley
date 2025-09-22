@@ -52,7 +52,7 @@ struct Home: View {
                         .padding(.trailing, 4)
 
                     }
-                    .padding(.top, 1)
+                    .padding(.top, 50)
                     
                     // Functional Search Box
                     FunctionalSearchBox(

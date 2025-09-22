@@ -210,9 +210,6 @@ class DocumentClassificationService: ObservableObject {
         
         let bestMatch = scores.max { $0.1 < $1.1 }
         
-        // Threshold for classification (minimum confidence required)
-        let minConfidenceThreshold: Float = 0.15
-        
         if let bestMatch = bestMatch {
             return (category: bestMatch.0, confidence: bestMatch.1)
         } else {

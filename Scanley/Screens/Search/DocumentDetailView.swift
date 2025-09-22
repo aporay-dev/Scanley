@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import Photos
+@preconcurrency import Photos
 
 struct DocumentDetailView: View {
     let searchResult: SearchResult
@@ -490,7 +490,7 @@ struct FullScreenImageView: View {
                 requestOptions.isNetworkAccessAllowed = true  // Allow iCloud downloads for full-screen
                 requestOptions.resizeMode = .none  // No resizing for maximum quality
 
-                let requestID = imageManager.requestImage(
+                _ = imageManager.requestImage(
                     for: asset,
                     targetSize: PHImageManagerMaximumSize,  // Original resolution
                     contentMode: .default,

@@ -19,28 +19,30 @@ struct SimpleOCREmptyStateView: View {
                 .foregroundColor(.orange)
             
             VStack(spacing: 8) {
-                Text("Simple Scan Test")
+                Text("Document Scan")
                     .font(.title2)
                     .fontWeight(.semibold)
-                
-                Text("This scan will run directly on all photos without document classification for faster processing")
+
+                Text("This scan will process all photos to extract text and automatically classify documents")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
             
-            // Performance Benefits Box
+            // What Scan Does Box
             VStack(alignment: .leading, spacing: 12) {
-                Text("🚀 Performance Benefits:")
+                Text("📋 What This Scan Does:")
                     .font(.headline)
                     .foregroundColor(.orange)
-                
+
                 VStack(alignment: .leading, spacing: 8) {
-                    BenefitRow(icon: "⚡", text: "Single Vision API call per photo")
-                    BenefitRow(icon: "🎯", text: "No complex document detection")
-                    BenefitRow(icon: "⏱️", text: "Faster parallel processing")
-                    BenefitRow(icon: "🔍", text: "Catches all text, no false negatives")
+                    BenefitRow(icon: "📸", text: "Analyzes all photos in your library")
+                    BenefitRow(icon: "🔍", text: "Makes all text searchable from home screen")
+                    BenefitRow(icon: "🤖", text: "AI search for your photos")
+                    BenefitRow(icon: "📱", text: "All on your device")
+                    BenefitRow(icon: "🔒", text: "Nothing leaves your phone")
+                    BenefitRow(icon: "🛡️", text: "Safe. Private. Secure")
                 }
             }
             .padding(16)
@@ -48,23 +50,6 @@ struct SimpleOCREmptyStateView: View {
             .cornerRadius(12)
             .padding(.horizontal, 20)
             
-            // Test Mode Toggle
-            VStack(spacing: 12) {
-                Toggle("Test Mode (Latest 100 photos)", isOn: Binding(
-                    get: { viewModel.isTestMode },
-                    set: { viewModel.isTestMode = $0 }
-                ))
-                .padding(.horizontal, 40)
-                
-                if viewModel.isTestMode {
-                    Text("Test mode will scan only the latest 100 photos for faster testing")
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                }
-            }
-            .padding(.top, 10)
             
             Button(action: {
                 Task {
@@ -73,13 +58,13 @@ struct SimpleOCREmptyStateView: View {
             }) {
                 HStack(spacing: 8) {
                     Image(systemName: "play.fill")
-                    Text(viewModel.isTestMode ? "Start Test Scan" : "Start Simple Scan")
+                    Text("Start Document Scan")
                 }
                 .font(.headline)
                 .foregroundColor(.white)
                 .padding(.horizontal, 30)
                 .padding(.vertical, 15)
-                .background(viewModel.isTestMode ? Color.orange : Color.orange.opacity(0.8))
+                .background(Color.orange)
                 .cornerRadius(25)
             }
             .padding(.top, 20)

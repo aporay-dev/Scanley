@@ -22,7 +22,6 @@ let defaultPhotoCategories: [PhotoCategory] = [
 // MARK: - App Configuration
 
 struct AppConfig {
-    static let maxPhotosInTestMode = 100
     static let ocrConfidenceThreshold: Float = 0.1
     static let minimumTextLength = 10
     static let maxSearchSuggestions = 5

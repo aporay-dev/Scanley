@@ -19,7 +19,7 @@ struct SimpleOCRResultsView: View {
                 .foregroundColor(.green)
             
             VStack(spacing: 8) {
-                Text("Simple Scan Complete!")
+                Text("Document Scan Complete!")
                     .font(.title2)
                     .fontWeight(.semibold)
                 
@@ -40,7 +40,7 @@ struct SimpleOCRResultsView: View {
                     ResultRow(label: "Photos Processed", value: "\(viewModel.totalPhotosScanned)")
                     ResultRow(label: "Photos with Text", value: "\(viewModel.documentsWithTextFound)")
                     ResultRow(label: "Success Rate", value: "\(Int(Double(viewModel.documentsWithTextFound) / Double(max(viewModel.totalPhotosScanned, 1)) * 100))%")
-                    ResultRow(label: "Scan Mode", value: viewModel.isTestMode ? "Test (100 photos)" : "Full Library")
+                    ResultRow(label: "Scan Mode", value: "Full Library")
                 }
             }
             .padding(16)

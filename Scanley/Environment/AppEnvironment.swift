@@ -12,8 +12,6 @@ import SwiftUI
 
 @MainActor
 class AppSettingsEnvironment: ObservableObject {
-    @Published var isTestMode: Bool = false
-    @Published var maxPhotosInTestMode: Int = 100
     @Published var ocrConfidenceThreshold: Float = 0.1
     @Published var minimumTextLength: Int = 10
     

@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Photos
+@preconcurrency import Photos
 import UIKit
 
 @MainActor
@@ -29,7 +29,9 @@ class ThumbnailImageManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleMemoryWarning()
+            Task { @MainActor in
+                self?.handleMemoryWarning()
+            }
         }
     }
 
@@ -118,10 +120,9 @@ class ThumbnailImageManager: ObservableObject {
         return await withCheckedContinuation { continuation in
             var hasResumed = false
 
-            let fetchOptions = PHFetchOptions()
-            fetchOptions.predicate = NSPredicate(format: "localIdentifier == %@", documentID)
-
             DispatchQueue.global(qos: .userInitiated).async {
+                let fetchOptions = PHFetchOptions()
+                fetchOptions.predicate = NSPredicate(format: "localIdentifier == %@", documentID)
                 let assets = PHAsset.fetchAssets(with: fetchOptions)
                 let asset = assets.firstObject
 
@@ -142,10 +143,9 @@ class ThumbnailImageManager: ObservableObject {
         return await withCheckedContinuation { continuation in
             var hasResumed = false
 
-            let fetchOptions = PHFetchOptions()
-            fetchOptions.predicate = NSPredicate(format: "localIdentifier IN %@", documentIDs)
-
             DispatchQueue.global(qos: .userInitiated).async {
+                let fetchOptions = PHFetchOptions()
+                fetchOptions.predicate = NSPredicate(format: "localIdentifier IN %@", documentIDs)
                 let assets = PHAsset.fetchAssets(with: fetchOptions)
                 var assetMap: [String: PHAsset] = [:]
 
