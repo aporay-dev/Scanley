@@ -118,8 +118,8 @@ class AppLogger: ObservableObject {
                 line: line
             )
 
-            // Add to history
-            DispatchQueue.main.async {
+            // Add to history on main actor
+            Task { @MainActor in
                 self?.addToHistory(logEntry)
             }
 
