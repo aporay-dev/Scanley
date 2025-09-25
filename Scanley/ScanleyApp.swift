@@ -12,6 +12,7 @@ import SwiftData
 struct ScanleyApp: App {
     @State private var hasPerformedAppLaunchCleanup = false
     @State private var isPerformingCleanup = false
+    @StateObject private var subscriptionManager = SubscriptionManager.shared
 
     var body: some Scene {
         WindowGroup {
@@ -20,6 +21,11 @@ struct ScanleyApp: App {
                     .task {
                         if !hasPerformedAppLaunchCleanup {
                             isPerformingCleanup = true
+
+                            // Initialize subscription manager
+                            await subscriptionManager.initialize()
+
+                            // Perform app launch cleanup
                             await performAppLaunchCleanup()
                             hasPerformedAppLaunchCleanup = true
 
@@ -30,6 +36,7 @@ struct ScanleyApp: App {
                     }
             } else {
                 Home()
+                    .environmentObject(subscriptionManager)
             }
         }
         .modelContainer(for: DocumentText.self)

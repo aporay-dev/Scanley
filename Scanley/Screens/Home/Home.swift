@@ -12,6 +12,7 @@ import Photos
 struct Home: View {
     @StateObject private var viewModel = HomeViewModel()
     @StateObject private var dataManager = DocumentDataManager.shared
+    @StateObject private var subscriptionManager = SubscriptionManager.shared
     @Environment(\.modelContext) private var modelContext
 
     @State private var searchText = ""
@@ -21,6 +22,8 @@ struct Home: View {
     @State private var showSearchResults = false
     @State private var isSearching = false
     @State private var showSettings = false
+    @State private var showPaywall = false
+    @State private var paywallTrigger: PaywallTrigger = .searchLimit
     
     var body: some View {
         ZStack {
@@ -78,11 +81,22 @@ struct Home: View {
                         onSearchSubmitted: {
                             showSearchSuggestions = false
                             if !searchText.isEmpty {
+                                // Check search limit before performing search
+                                if !subscriptionManager.subscriptionState.canSearch {
+                                    paywallTrigger = .searchLimit
+                                    showPaywall = true
+                                    return
+                                }
+
                                 Task {
                                     if searchService == nil {
                                         searchService = DocumentSearchService(modelContext: modelContext)
                                     }
                                     isSearching = true
+
+                                    // Increment search count for free users before search
+                                    subscriptionManager.incrementSearchCount()
+
                                     await searchService?.search(query: searchText)
                                     isSearching = false
                                     showSearchResults = true
@@ -92,17 +106,38 @@ struct Home: View {
                         onSuggestionSelected: { suggestion in
                             searchText = suggestion
                             showSearchSuggestions = false
+
+                            // Check search limit before performing search
+                            if !subscriptionManager.subscriptionState.canSearch {
+                                paywallTrigger = .searchLimit
+                                showPaywall = true
+                                return
+                            }
+
                             Task {
                                 if searchService == nil {
                                     searchService = DocumentSearchService(modelContext: modelContext)
                                 }
                                 isSearching = true
+
+                                // Increment search count for free users before search
+                                subscriptionManager.incrementSearchCount()
+
                                 await searchService?.search(query: suggestion)
                                 isSearching = false
                                 showSearchResults = true
                             }
                         }
                     )
+
+                    // Search Counter for Free Users
+                    if !subscriptionManager.subscriptionState.isActive {
+                        SearchCounterView(
+                            remainingSearches: subscriptionManager.remainingSearches,
+                            hasReachedLimit: subscriptionManager.hasReachedSearchLimit
+                        )
+                        .padding(.top, 8)
+                    }
 
                     // Classification Status (if active)
                     if viewModel.isClassifying || !viewModel.classificationStatus.isEmpty {
@@ -168,6 +203,9 @@ struct Home: View {
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(trigger: paywallTrigger)
         }
         .task {
             await viewModel.loadScanSummary(context: modelContext)
@@ -298,6 +336,9 @@ struct ScanSummarySection: View {
 struct PhotoCategoriesGrid: View {
     let categories: [PhotoCategory]
     let onCategoryTapped: (PhotoCategory) -> Void
+    @StateObject private var subscriptionManager = SubscriptionManager.shared
+    @State private var showPaywall = false
+    @State private var paywallTrigger: PaywallTrigger = .categoryAccess(categoryName: "")
 
     var body: some View {
         LazyVGrid(columns: [
@@ -305,17 +346,29 @@ struct PhotoCategoriesGrid: View {
             GridItem(.flexible(), spacing: 10)
         ], spacing: 10) {
             ForEach(categories, id: \.title) { category in
-                PhotoCategoryCard(category: category) {
-                    onCategoryTapped(category)
+                PhotoCategoryCard(
+                    category: category,
+                    isAccessible: subscriptionManager.canAccessCategory(category.title)
+                ) {
+                    if subscriptionManager.canAccessCategory(category.title) {
+                        onCategoryTapped(category)
+                    } else {
+                        paywallTrigger = .categoryAccess(categoryName: category.title)
+                        showPaywall = true
+                    }
                 }
             }
         }
         .padding(.top,10)
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(trigger: paywallTrigger)
+        }
     }
 }
 
 struct PhotoCategoryCard: View {
     let category: PhotoCategory
+    let isAccessible: Bool
     let onTapped: () -> Void
 
     var body: some View {
@@ -343,6 +396,29 @@ struct PhotoCategoryCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(category.color)
             .cornerRadius(12)
+            .overlay(
+                // Pro lock overlay for restricted categories
+                Group {
+                    if !isAccessible {
+                        ZStack {
+                            // Semi-transparent overlay
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.black.opacity(0.6))
+
+                            VStack(spacing: 4) {
+                                Image(systemName: "lock.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.white)
+
+                                Text("PRO")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                            }
+                        }
+                    }
+                }
+            )
         }
         .buttonStyle(PlainButtonStyle())
         .padding(.top,5)
@@ -547,10 +623,18 @@ struct SearchResultThumbnail: View {
     let onTapped: () -> Void
     @State private var thumbnailImage: UIImage?
     @State private var isLoadingImage = true
+    @State private var showPaywall = false
     @StateObject private var imageManager = ThumbnailImageManager.shared
+    @StateObject private var subscriptionManager = SubscriptionManager.shared
 
     var body: some View {
-        Button(action: onTapped) {
+        Button(action: {
+            if subscriptionManager.subscriptionState.canViewFullScreen {
+                onTapped()
+            } else {
+                showPaywall = true
+            }
+        }) {
             VStack(spacing: 8) {
                 // Document Thumbnail
                 ZStack {
@@ -592,6 +676,34 @@ struct SearchResultThumbnail: View {
             }
         }
         .buttonStyle(PlainButtonStyle())
+        .overlay(
+            // Pro lock overlay for free users
+            Group {
+                if !subscriptionManager.subscriptionState.canViewFullScreen {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            VStack(spacing: 2) {
+                                Image(systemName: "lock.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                                Text("PRO")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.black.opacity(0.8))
+                            .clipShape(Capsule())
+                            .padding(.trailing, 8)
+                            .padding(.bottom, 8)
+                        }
+                    }
+                }
+            }
+        )
         .onAppear {
             loadThumbnailImage()
         }
@@ -600,6 +712,9 @@ struct SearchResultThumbnail: View {
             if isLoadingImage {
                 imageManager.cancelRequest(documentID: result.documentID)
             }
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(trigger: .fullScreenView)
         }
     }
 
@@ -618,6 +733,53 @@ struct SearchResultThumbnail: View {
                 self.thumbnailImage = image
                 self.isLoadingImage = false
             }
+        }
+    }
+}
+
+struct SearchCounterView: View {
+    let remainingSearches: Int
+    let hasReachedLimit: Bool
+    @State private var showPaywall = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            if hasReachedLimit {
+                Text("Search limit reached")
+                    .font(.caption)
+                    .foregroundColor(.red)
+            } else {
+                Text("\(remainingSearches) searches remaining")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            if remainingSearches <= 5 {
+                Button("Upgrade") {
+                    showPaywall = true
+                }
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .background(Color.blue)
+                .clipShape(Capsule())
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color(UIColor.secondarySystemGroupedBackground))
+        .cornerRadius(8)
+        .padding(.horizontal, 20)
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(trigger: .searchLimit)
         }
     }
 }

@@ -15,7 +15,7 @@ class DocumentSearchService: ObservableObject {
     @Published var searchResults: [SearchResult] = []
     @Published var isSearching = false
     @Published var searchQuery = ""
-    
+
     private var modelContext: ModelContext
     private let swiftDataManager = SwiftDataManager.shared
     private let filterByCategory: String?
@@ -25,6 +25,7 @@ class DocumentSearchService: ObservableObject {
         self.filterByCategory = filterByCategory
         
         if let category = filterByCategory {
+            logDebug("Initialized DocumentSearchService with category filter: \(category)", category: .search)
         }
     }
     
@@ -35,14 +36,12 @@ class DocumentSearchService: ObservableObject {
             searchResults = []
             return
         }
-        
-        
+
         isSearching = true
         searchQuery = query
-        
+
         let results = await performSearch(query: query)
-        
-        
+
         searchResults = results
         isSearching = false
     }
@@ -287,6 +286,10 @@ class DocumentSearchService: ObservableObject {
     
     func getSearchSuggestions(for partialQuery: String) async -> [String] {
         guard partialQuery.count >= 2 else { return [] }
+
+        // Only provide suggestions for Pro users
+        let subscriptionManager = SubscriptionManager.shared
+        guard subscriptionManager.subscriptionState.canUseSearchSuggestions else { return [] }
         
         do {
             let descriptor = FetchDescriptor<DocumentText>()

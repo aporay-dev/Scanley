@@ -141,6 +141,16 @@ struct SettingsView: View {
                         subtitle: "Development and debugging tools (Debug Build Only)",
                         showChevron: false
                     )
+
+                    Button("Reset to Free Tier") {
+                        SubscriptionManager.shared.mockResetToFree()
+                    }
+                    .foregroundColor(.red)
+
+                    Button("Set Search Count to 2") {
+                        SubscriptionManager.shared.mockSetSearchCount(13)
+                    }
+                    .foregroundColor(.blue)
                 }
                 #endif
             }

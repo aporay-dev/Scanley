@@ -228,6 +228,9 @@ class SimpleOCRViewModel: ObservableObject {
             
             // Dynamic throttling based on performance
             let batchTime = CFAbsoluteTimeGetCurrent() - batchStartTime
+            #if DEBUG
+            logInfo("Batch processing completed in \(String(format: "%.3f", batchTime))s", category: .performance)
+            #endif
             let throttleTime = performanceMonitor.shouldThrottle()
             
             if throttleTime > 0 {
@@ -249,6 +252,9 @@ class SimpleOCRViewModel: ObservableObject {
                     
                     // Verify documents are now visible in main context
                     let allDocs = try swiftDataManager.fetchAllDocumentTexts(context: mainContext)
+                    #if DEBUG
+                    logInfo("Retrieved \(allDocs.count) total documents for final count", category: .database)
+                    #endif
                 }
             } catch {
             }

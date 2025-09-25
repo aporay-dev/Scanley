@@ -135,7 +135,7 @@ class AppLogger: ObservableObject {
 
     // MARK: - System Logging
 
-    private func logToSystem(_ entry: LogEntry) {
+    nonisolated private func logToSystem(_ entry: LogEntry) {
         let osLog = entry.category.osLog
         let logMessage = "\(entry.message) [\(entry.file):\(entry.line)]"
 
@@ -144,7 +144,7 @@ class AppLogger: ObservableObject {
 
     // MARK: - Console Logging (Debug Only)
 
-    private func logToConsole(_ entry: LogEntry) {
+    nonisolated private func logToConsole(_ entry: LogEntry) {
         let timestamp = DateFormatter.logTimestamp.string(from: entry.timestamp)
         let levelIcon = entry.level.emoji
         let categoryLabel = "[\(entry.category.rawValue)]"
