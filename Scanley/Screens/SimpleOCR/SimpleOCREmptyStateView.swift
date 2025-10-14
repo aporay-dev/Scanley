@@ -1,0 +1,88 @@
+//
+//  SimpleOCREmptyStateView.swift
+//  Scanley
+//
+//  Created by Anand Poray on 2025-09-09.
+//
+
+import SwiftUI
+
+struct SimpleOCREmptyStateView: View {
+    @ObservedObject var viewModel: SimpleOCRViewModel
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 64))
+                .foregroundColor(.orange)
+            
+            VStack(spacing: 8) {
+                Text("Document Scan")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text("This scan will process all photos to extract text and automatically classify documents.")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, UIDevice.current.userInterfaceIdiom == .pad ? 30 : 16)
+            }
+            
+            // What Scan Does Box
+            VStack(alignment: .leading, spacing: 12) {
+                Text("📋 What This Scan Does:")
+                    .font(.headline)
+                    .foregroundColor(.orange)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    BenefitRow(icon: "📸", text: "Analyzes all photos in your library")
+                    BenefitRow(icon: "📸", text: "Make all text searchable from the home screen")
+                    BenefitRow(icon: "🤖", text: "Enable AI search for your photos")
+                    BenefitRow(icon: "📱", text: "All on your device")
+                    BenefitRow(icon: "🔒", text: "Nothing leaves your phone")
+                    BenefitRow(icon: "🛡️", text: "Safe. Private. Secure")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(16)
+            .background(Color.orange.opacity(0.1))
+            .cornerRadius(12)
+            .padding(.horizontal, UIDevice.current.userInterfaceIdiom == .pad ? 24 : 16)
+            
+            
+            Button(action: {
+                Task {
+                    await viewModel.startSimpleOCRScan()
+                }
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "play.fill")
+                    Text("Start Document Scan")
+                }
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.horizontal, 30)
+                .padding(.vertical, 15)
+                .background(Color.orange)
+                .cornerRadius(25)
+            }
+            .padding(.top, 20)
+            
+            if !viewModel.scanStatusMessage.isEmpty {
+                Text(viewModel.scanStatusMessage)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.top, 10)
+            }
+            
+            Spacer()
+        }
+    }
+}
+
+
+

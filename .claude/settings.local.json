@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(xcodebuild:*)",
+      "Read(//Users/anandporay/Downloads/**)",
+      "Bash(open:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

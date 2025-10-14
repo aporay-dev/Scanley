@@ -7,20 +7,25 @@
 
 import SwiftUI
 
-let photoCategories = [
-    PhotoCategory(numPhotos: 756, title: "Documents", icon: "briefcase", color: Color(red: 1.0, green: 0.4, blue: 0.5)),
-    PhotoCategory(numPhotos: 34, title: "Receipts", icon: "person.crop.rectangle.fill", color: Color(red: 0.3, green: 0.3, blue: 0.9)),
-    PhotoCategory(numPhotos: 89, title: "Invoices", icon: "doc.text", color: Color(red: 0.4, green: 0.4, blue: 0.9)),
-    PhotoCategory(numPhotos: 523, title: "Barcodes\n& QR codes", icon: "qrcode", color: Color(red: 1.0, green: 0.6, blue: 0.2)),
-    
-    PhotoCategory(numPhotos: 43, title: "Handwritten notes", icon: "scribble.variable", color: Color(red: 0.62, green: 0.102, blue: 0.82)),
-    PhotoCategory(numPhotos: 67, title: "Illustrations", icon: "hand.draw", color: Color(red: 0.19, green: 0.43, blue: 0.98))
+// MARK: - Global Constants
 
+let defaultPhotoCategories: [PhotoCategory] = [
+    PhotoCategory(numPhotos: 0, title: "Tax", icon: "briefcase", color: Color(red: 0.0, green: 0.7, blue: 0.0)),
+    PhotoCategory(numPhotos: 0, title: "Receipts", icon: "receipt", color: Color(red: 0.3, green: 0.3, blue: 0.9)),
+    PhotoCategory(numPhotos: 0, title: "Invoices & Bills", icon: "doc.text", color: Color(red: 0.4, green: 0.4, blue: 0.9)),
+    PhotoCategory(numPhotos: 0, title: "Bank", icon: "creditcard", color: Color(red: 0.2, green: 0.6, blue: 0.8)),
+    PhotoCategory(numPhotos: 0, title: "Medical", icon: "cross.fill", color: Color(red: 0.8, green: 0.2, blue: 0.4)),
+    PhotoCategory(numPhotos: 0, title: "Legal", icon: "scale.3d", color: Color(red: 0.6, green: 0.4, blue: 0.2)),
+    PhotoCategory(numPhotos: 0, title: "Govt", icon: "building.columns", color: Color(red: 0.5, green: 0.2, blue: 0.8)),
+    PhotoCategory(numPhotos: 0, title: "Insurance", icon: "shield.checkered", color: Color(red: 0.2, green: 0.8, blue: 0.6)),
 ]
 
-struct PhotoCategory {
-    let numPhotos: Int32
-    let title: String
-    let icon: String
-    let color: Color
+// MARK: - App Configuration
+
+struct AppConfig {
+    static let ocrConfidenceThreshold: Float = 0.1
+    static let minimumTextLength = 10
+    static let maxSearchSuggestions = 5
+    static let maxRecentSearches = 10
+    static let batchSize = 5
 }
