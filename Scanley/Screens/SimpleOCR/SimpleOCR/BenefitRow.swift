@@ -12,12 +12,17 @@ struct BenefitRow: View {
     let text: String
     
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
             Text(icon)
                 .font(.system(size: 16))
+                .frame(width: 20, alignment: .leading)
+
             Text(text)
                 .font(.system(size: 14))
                 .foregroundColor(.primary)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }

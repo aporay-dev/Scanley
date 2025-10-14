@@ -8,6 +8,7 @@
 import SwiftUI
 import Photos
 import SwiftData
+import SafariServices
 
 struct SettingsView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -15,8 +16,14 @@ struct SettingsView: View {
     @State private var photoLibraryStatus: PHAuthorizationStatus = .notDetermined
     @State private var showClearDataAlert = false
     @State private var showSimpleOCR = false
+    @State private var showingPrivacyPolicy = false
+    @State private var showingTermsOfService = false
 
     private let swiftDataManager = SwiftDataManager.shared
+
+    // URL Constants
+    private let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+    private let privacyURL = URL(string: "https://aporay-dev.github.io/scanley-support/privacy.html")!
 
     var body: some View {
         NavigationView {
@@ -32,21 +39,31 @@ struct SettingsView: View {
                         showChevron: false
                     )
 
-                    SettingsRow(
-                        icon: "doc.text",
-                        iconColor: .blue,
-                        title: "Privacy Policy",
-                        subtitle: nil,
-                        showChevron: true
-                    )
+                    Button(action: {
+                        showingPrivacyPolicy = true
+                    }) {
+                        SettingsRow(
+                            icon: "doc.text",
+                            iconColor: .blue,
+                            title: "Privacy Policy",
+                            subtitle: nil,
+                            showChevron: true
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
 
-                    SettingsRow(
-                        icon: "doc.text",
-                        iconColor: .blue,
-                        title: "Terms of Service",
-                        subtitle: nil,
-                        showChevron: true
-                    )
+                    Button(action: {
+                        showingTermsOfService = true
+                    }) {
+                        SettingsRow(
+                            icon: "doc.text",
+                            iconColor: .blue,
+                            title: "Terms of Service",
+                            subtitle: nil,
+                            showChevron: true
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
 
                 // App Information Section
@@ -63,14 +80,14 @@ struct SettingsView: View {
                         icon: "info.circle",
                         iconColor: .blue,
                         title: "Version",
-                        value: "1.0"
+                        value: "1.0.2"
                     )
 
                     SettingsInfoRow(
                         icon: "gear",
                         iconColor: .blue,
                         title: "Build",
-                        value: "1"
+                        value: "2"
                     )
                 }
 
@@ -176,6 +193,12 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showSimpleOCR) {
                 SimpleOCRView()
+            }
+            .sheet(isPresented: $showingPrivacyPolicy) {
+                SafariView(url: privacyURL).ignoresSafeArea()
+            }
+            .sheet(isPresented: $showingTermsOfService) {
+                SafariView(url: termsURL).ignoresSafeArea()
             }
         }
     }

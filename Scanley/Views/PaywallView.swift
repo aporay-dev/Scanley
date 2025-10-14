@@ -8,6 +8,12 @@
 import SwiftUI
 import StoreKit
 
+
+// Add near the top of PaywallView.swift
+private let termsURL  = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+private let privacyURL = URL(string: "https://aporay-dev.github.io/scanley-support/privacy.html")!
+
+
 // MARK: - Paywall Trigger Types
 
 enum PaywallTrigger: Equatable {
@@ -93,8 +99,6 @@ struct PaywallView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 5)
             }
-//            .navigationTitle("Scanley Pro")
-//            .navigationBarTitleDisplayMode(.large)
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -107,10 +111,10 @@ struct PaywallView: View {
                 }
             }
             .sheet(isPresented: $showingTerms) {
-                SafariView(url: URL(string: "https://www.example.com/terms")!)
+                SafariView(url: termsURL).ignoresSafeArea()
             }
             .sheet(isPresented: $showingPrivacy) {
-                SafariView(url: URL(string: "https://www.example.com/privacy")!)
+                SafariView(url: privacyURL).ignoresSafeArea()
             }
         }
     }
@@ -119,12 +123,6 @@ struct PaywallView: View {
 
     private var headerSection: some View {
         VStack(spacing: 12) {
-            // App Icon
-//            Image("ScanleyLogo") // Replace with actual app icon
-//                .resizable()
-//                .frame(width: 120, height: 60)
-//                .clipShape(RoundedRectangle(cornerRadius: 14))
-//                .shadow(radius: 3)
 
             // Title and Subtitle
             VStack(spacing: 6) {
@@ -256,31 +254,79 @@ struct PaywallView: View {
             .font(.subheadline)
             .foregroundColor(.blue)
 
-            // Trial Information
-            Text("Free for 7 days, then \(selectedProduct.getPrice(from: subscriptionManager.products)) per \(selectedProduct == .weekly ? "week" : "year"). Cancel anytime.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 20)
+            // Trial Information - Enhanced for App Store compliance
+            VStack(spacing: 12) {
+                // Prominent trial callout
+                HStack(spacing: 8) {
+                    Image(systemName: "gift.fill")
+                        .font(.headline)
+                        .foregroundColor(.green)
+
+                    Text("7-Day Free Trial")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+
+                    Spacer()
+                }
+
+                // Detailed trial terms
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("• Free for 7 days, no charges during trial")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+
+                    Text("• Then \(selectedProduct.getPrice(from: subscriptionManager.products)) per \(selectedProduct == .weekly ? "week" : "year")")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+
+                    Text("• Cancel anytime from iOS Settings > Subscriptions")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+
+                    Text("• Full access to all Pro features during trial")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.green.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                    )
+            )
+            .padding(.horizontal, 4)
         }
     }
 
     // MARK: - Legal Section
-
     private var legalSection: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 16) {
-                Button("Terms of Service") {
-                    showingTerms = true
-                }
+        VStack(spacing: 12) {
+            // Auto-renew disclosure (tiny copy block)
+            Text("""
+            Payment will be charged to your Apple ID account at confirmation of purchase. 
+            Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period. 
+            You can manage or cancel your subscription in Settings > Apple ID > Subscriptions. 
+            Any unused portion of a free trial will be forfeited when you purchase a subscription.
+            """)
+            .font(.caption2)
+            .foregroundColor(.secondary)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
 
-                Button("Privacy Policy") {
-                    showingPrivacy = true
-                }
+            // Links row
+            HStack(spacing: 16) {
+                Button("Terms of Use (EULA)") { showingTerms = true }
+                Button("Privacy Policy") { showingPrivacy = true }
             }
             .font(.caption)
-            .foregroundColor(.blue)
+            .tint(.blue)
 
+            // Error message if any
             if let errorMessage = subscriptionManager.errorMessage {
                 Text(errorMessage)
                     .font(.caption)
@@ -289,7 +335,9 @@ struct PaywallView: View {
                     .padding(.horizontal, 20)
             }
         }
+        .padding(.top, 8)
     }
+
 }
 
 // MARK: - Supporting Views

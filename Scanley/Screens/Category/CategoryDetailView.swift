@@ -223,19 +223,19 @@ struct EmptyStateView: View {
                 .foregroundColor(category.color.opacity(0.5))
 
             VStack(spacing: 8) {
-                Text("No \(category.title) Found")
+                Text("No \(category.title) Documents Found")
                     .font(.title2)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
 
-                Text("Documents will appear here once you scan and classify them.")
+                Text("Documents will appear here once you scan them.")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
 
-            Text("💡 Tip: Use the 'Scan Documents' button to add documents, then tap 'Classify' to categorize them.")
+            Text("💡 Tip: Use the 'Scan Documents' button on Home screen to add documents. They'll be automatically categorized after scanning.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

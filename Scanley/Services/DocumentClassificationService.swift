@@ -40,11 +40,11 @@ class DocumentClassificationService: ObservableObject {
             let allDocuments = try swiftDataManager.fetchAllDocumentTexts(context: context)
             let totalDocuments = allDocuments.count
 
-            logInfo("Found \(totalDocuments) documents to classify", category: .classification)
+            logInfo("Found \(totalDocuments) documents", category: .classification)
 
             if totalDocuments == 0 {
                 isClassifying = false
-                logDebug("No documents found to classify", category: .classification)
+                logDebug("No documents found", category: .classification)
                 return
             }
             

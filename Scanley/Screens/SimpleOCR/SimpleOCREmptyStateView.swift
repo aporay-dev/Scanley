@@ -27,7 +27,9 @@ struct SimpleOCREmptyStateView: View {
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, UIDevice.current.userInterfaceIdiom == .pad ? 30 : 16)
             }
             
             // What Scan Does Box
@@ -44,11 +46,12 @@ struct SimpleOCREmptyStateView: View {
                     BenefitRow(icon: "🔒", text: "Nothing leaves your phone")
                     BenefitRow(icon: "🛡️", text: "Safe. Private. Secure")
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(16)
             .background(Color.orange.opacity(0.1))
             .cornerRadius(12)
-            .padding(.horizontal, 20)
+            .padding(.horizontal, UIDevice.current.userInterfaceIdiom == .pad ? 24 : 16)
             
             
             Button(action: {

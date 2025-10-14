@@ -55,7 +55,7 @@ struct Home: View {
                         .padding(.trailing, 4)
 
                     }
-                    .padding(.top, 50)
+                    .padding(.top, 20)
                     
                     // Functional Search Box
                     FunctionalSearchBox(
@@ -153,7 +153,7 @@ struct Home: View {
                         totalDocuments: viewModel.totalDocumentsFound,
                         lastScanDate: viewModel.lastScanDate
                     )
-                    .padding(.top,30)
+                    .padding(.top,15)
 
                     // Photo Categories Grid
                     PhotoCategoriesGrid(
@@ -162,8 +162,15 @@ struct Home: View {
                             viewModel.openCategoryDetail(for: category)
                         }
                     )
-                    .padding(.top,15)
-                    
+                    .padding(.top,10)
+
+                    // Prominent Scan Button
+                    ScanDocumentButton {
+                        viewModel.openSimpleOCR()
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 20)
+
                     Spacer()
                 }
                 .padding(.horizontal, 20)
@@ -326,7 +333,7 @@ struct ScanSummarySection: View {
                   .lineLimit(nil)
         }
         .padding(16)
-        .frame(height: 100)
+        .frame(height: 70)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(red: 1.0, green: 0.6, blue: 0.2))
         .cornerRadius(12)
@@ -783,6 +790,48 @@ struct SearchCounterView: View {
         }
     }
 }
+
+struct ScanDocumentButton: View {
+    let action: () -> Void
+    @State private var isPressed = false
+
+    var body: some View {
+        // Make the wrapper take the full width and align to the right
+        HStack {
+            Button(action: action) {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.viewfinder")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+
+                    Text("Scan Documents")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 16) // capsule hugs content
+                .padding(.vertical, 10)
+                .frame(height: 50)
+                .background(
+                    Capsule()
+                        .fill(Color.indigo)
+                        .shadow(color: Color.cyan.opacity(0.3), radius: 8, x: 0, y: 4)
+                )
+                .scaleEffect(isPressed ? 0.95 : 1.0)
+                .animation(.easeInOut(duration: 0.1), value: isPressed)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+                isPressed = pressing
+            }, perform: {})
+            .accessibilityLabel("Scan Documents")
+            .accessibilityHint("Tap to scan and add new documents to your library")
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing) // align to parent's right edge
+        // 🚫 remove .padding(.horizontal) here so it lines up with the grid above
+    }
+}
+
+
 
 #Preview {
     Home()
